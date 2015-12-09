@@ -1,0 +1,7 @@
+*.o
+*.output
+.cproject
+.depend
+.project
+shell
+.gitignore~
