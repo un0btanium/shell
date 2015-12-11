@@ -48,6 +48,7 @@ int umlenkungen(Kommando k){
 					printf("Fehler open %s\n", umlenkung.pfad); return 0;
 		case APPEND: if((file = open(umlenkung.pfad, O_WRONLY | O_APPEND | O_CREAT)) == -1)
 				  	  printf("Fehler open %s\n", umlenkung.pfad); return 0;
+
 	}
 
 	if(dup2(file,umlenkung.filedeskriptor) == -1)
