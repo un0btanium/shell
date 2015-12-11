@@ -15,6 +15,8 @@
 #include "parser.h"
 #include "variablen.h"
 
+Liste processList;
+
 int interpretiere(Kommando k, int forkexec);
 
 void do_execvp(int argc, char **args) {
@@ -53,7 +55,8 @@ int umlenkungen(Kommando k) {
 				abbruch("Fehler WRITE %s\n", umlenkung.pfad);
 			break;
 		case APPEND:
-			if ((file = open(umlenkung.pfad, O_RDWR | O_APPEND | O_CREAT)) == -1)
+			if ((file = open(umlenkung.pfad, O_RDWR | O_APPEND | O_CREAT))
+					== -1)
 				abbruch("Fehler APPEND %s\n", umlenkung.pfad);
 			break;
 		}
@@ -63,10 +66,49 @@ int umlenkungen(Kommando k) {
 
 		close(file);
 
-		/* Exit(1) falls Liste leer (mögl. Fehlerquelle) */
-		if(i-1<anzahl) umlenkungen = listeRest(umlenkungen);
+		if (i - 1 < anzahl)
+			umlenkungen = listeRest(umlenkungen);
 	}
 
+	return 0;
+}
+
+int status() {
+	int processCount = listeLaenge(processList);
+	if (processCount == 0) {
+		fputs("Keine Prozesse aktiv!\n", stderr);
+		return 0;
+	}
+	Liste newProcessList;
+	int i;
+
+	printf("PID		PGID	STATUS		PROG\n");
+	for (i = 1; i <= processCount; i++) {
+		int pid = processList->kopf;
+		int status;
+		int pid_t = waitpid(pid, status, WNOHANG | WUNTRACED);
+
+		if (pid_t == -1) { // ERROR
+			printf("%d		%d	", pid_t, pid);
+			fputs("Error!	", stderr);
+			printf("%s\n", "(path no yet implemented)");
+		} else if (pid_t == 0)		// RUNNING
+			printf("%d		%d	%d		%s\n", pid_t, pid, "running",
+					"(path not yet implemented)");
+		else
+			// STOPPED OR TERMINATED
+			printf("%d		%d	%d		%s\n", pid_t, pid, status,
+					"(path not yet implemented)");
+
+		if (pid_t == 0) {
+			if (listeLaenge(newProcessList) == 0)
+				newProcessList = listeNeu(pid);
+			else
+				newProcessList = listeAnfuegen(newProcessList, pid);
+		}
+		processList = processList->rest; // check required? use methods?
+	}
+	processList = newProcessList; // aktualisiere Liste mit aktiven Prozessen
 	return 1;
 }
 
@@ -78,7 +120,6 @@ int aufruf(Kommando k, int forkexec) {
 
 	if (forkexec) {
 		int pid = fork();
-
 		switch (pid) {
 		case -1:
 			perror("Fehler bei fork");
@@ -88,12 +129,17 @@ int aufruf(Kommando k, int forkexec) {
 				exit(1);
 			do_execvp(k->u.einfach.wortanzahl, k->u.einfach.worte);
 			abbruch("interner Fehler 001"); /* sollte nie ausgeführt werden */
+			/* no break */
 		default:
-			if (k->endeabwarten)
-
-				/* pipelining implementieren */
-				/* So einfach geht das hier nicht! */
+			if (k->endeabwarten) /* Prozess im Vordergrund ?? */
 				waitpid(pid, NULL, 0);
+			else { /* Prozess im Hintergrund */
+				if (listeLaenge(processList) == 0) /* Prozessliste noch nicht inizialisiert */
+					processList = listeNeu(pid);
+				else
+					/* Prozessliste hat bereits Prozess-IDs enthalten */
+					processList = listeAnfuegen(processList, pid);
+			}
 			return 0;
 		}
 	}
@@ -111,6 +157,7 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 	char **worte = k->u.einfach.worte;
 	int anzahl = k->u.einfach.wortanzahl;
 
+	// EXIT
 	if (strcmp(worte[0], "exit") == 0) {
 		switch (anzahl) {
 		case 1:
@@ -124,7 +171,6 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 	}
 
 	if (strcmp(worte[0], "cd") == 0) {
-
 		switch (anzahl) {
 		case 1:
 			fputs(" NOT IMPLEMENTED. Should lead to homedir", stderr);
@@ -135,10 +181,16 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 		default:
 			fputs("Aufruf: cd [ Dateipfad ]", stderr);
 		}
-		return 0;
-	}
 
-	return aufruf(k, forkexec);
+		// STATUS
+		if (strcmp(worte[0], "status") == 0) {
+			if (anzahl > 1)
+				fputs("Aufruf: status\n", stderr);
+			return status();
+		}
+
+		return aufruf(k, forkexec);
+	}
 }
 
 int interpretiere(Kommando k, int forkexec) {
@@ -159,7 +211,7 @@ int interpretiere(Kommando k, int forkexec) {
 		return status;
 	default:
 		fputs("unbekannter Kommandotyp, Bearbeitung nicht implementiert\n",
-				stderr);
+		stderr);
 		break;
 	}
 	return 0;
