@@ -32,8 +32,34 @@ int interpretiere_pipeline(Kommando k){
 }
 
 int umlenkungen(Kommando k){
-  /* Umlenkungen bearbeiten */
-  return 0;
+	int file,i;
+	Liste umlenkungen = k->u.einfach.umlenkungen;
+	int anzahl = listeLaenge(umlenkungen);
+	Umlenkung umlenkung;
+
+
+	for(i = 0; i < anzahl;i++) {
+		umlenkung = *(Umlenkung*)listeKopf(umlenkungen);
+
+		switch(umlenkung.modus){
+		case READ: if((file = open(umlenkung.pfad, O_RDONLY)) == -1)
+					printf("Fehler open %s\n", umlenkung.pfad); return 0;
+		case WRITE: if((file = open(umlenkung.pfad, O_WRONLY | O_TRUNC | O_CREAT)) == -1)
+					printf("Fehler open %s\n", umlenkung.pfad); return 0;
+		case APPEND: if((file = open(umlenkung.pfad, O_WRONLY | O_APPEND | O_CREAT)) == -1)
+				  	  printf("Fehler open %s\n", umlenkung.pfad); return 0;
+	}
+
+	if(dup2(file,umlenkung.filedeskriptor) == -1)
+		printf("Fehler dup in %s\n", umlenkung.pfad);
+
+	close(file);
+	/* Exit(1) falls Liste leer (mögl. Fehlerquelle) */
+
+	if(i-1<anzahl) umlenkungen = listeRest(umlenkungen);
+	}
+
+  return 1;
 }
 
 int aufruf(Kommando k, int forkexec){
@@ -56,6 +82,8 @@ int aufruf(Kommando k, int forkexec){
       abbruch("interner Fehler 001"); /* sollte nie ausgeführt werden */
     default:
       if(k->endeabwarten)
+
+    	 /* pipelining implementieren */
         /* So einfach geht das hier nicht! */
 	waitpid(pid, NULL, 0);
       return 0;
@@ -89,7 +117,12 @@ int interpretiere_einfach(Kommando k, int forkexec){
   }
 
   if (strcmp(worte[0], "cd")==0) {
-    fputs("NOT IMPLEMENTED", stderr);
+
+	  switch(anzahl){
+	  case 1: fputs(" NOT IMPLEMENTED. Should lead to homedir", stderr); break;
+	  case 2: fputs(" NOT IMPLEMENTED. Should lead to path", stderr); break;
+	  default: fputs("Aufruf: cd [ Dateipfad ]", stderr);
+	  }
     return 0;
   }
 
