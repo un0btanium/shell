@@ -76,7 +76,7 @@ int umlenkungen(Kommando k) {
 int status() {
 	int processCount = listeLaenge(processList);
 	Liste newProcessList;
-	int i
+	int i;
 
 	if (processCount == 0) {
 		fputs("Keine Prozesse aktiv!\n", stderr);
