@@ -88,7 +88,7 @@ int main(int argc, char *argv[]){
     if(res==0){
       if(zeigen) 
         kommandoZeigen(k);
-      if(ausfuehren) 
+      if(ausfuehren)
         status=interpretiere(k, 1);
       if(zeigen) 
         fprintf(stderr, "Status: %d\n", status);

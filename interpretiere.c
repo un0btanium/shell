@@ -66,7 +66,7 @@ int umlenkungen(Kommando k) {
 
 		close(file);
 
-		if (i - 1 < anzahl)
+		if (i-1 < anzahl)
 			umlenkungen = listeRest(umlenkungen);
 	}
 
@@ -75,29 +75,31 @@ int umlenkungen(Kommando k) {
 
 int status() {
 	int processCount = listeLaenge(processList);
+	Liste newProcessList;
+	int i;
+
 	if (processCount == 0) {
 		fputs("Keine Prozesse aktiv!\n", stderr);
 		return 0;
 	}
-	Liste newProcessList;
-	int i;
+
 
 	printf("PID		PGID	STATUS		PROG\n");
 	for (i = 1; i <= processCount; i++) {
-		int pid = processList->kopf;
-		int status;
+		int pid = *(int*)processList->kopf;
+		int* status; /* Status uninitialisiert? (War vorher nur INT) */
 		int pid_t = waitpid(pid, status, WNOHANG | WUNTRACED);
 
-		if (pid_t == -1) { // ERROR
+		if (pid_t == -1) { /* ERROR */
 			printf("%d		%d	", pid_t, pid);
 			fputs("Error!	", stderr);
 			printf("%s\n", "(path no yet implemented)");
-		} else if (pid_t == 0)		// RUNNING
-			printf("%d		%d	%d		%s\n", pid_t, pid, "running",
+		} else if (pid_t == 0)		/* RUNNING */
+			printf("%d		%d	%s		%s\n", pid_t, pid, "running",
 					"(path not yet implemented)");
 		else
-			// STOPPED OR TERMINATED
-			printf("%d		%d	%d		%s\n", pid_t, pid, status,
+			/* STOPPED OR TERMINATED */
+			printf("%d		%d	%d		%s\n", pid_t, pid, *status,
 					"(path not yet implemented)");
 
 		if (pid_t == 0) {
@@ -106,9 +108,9 @@ int status() {
 			else
 				newProcessList = listeAnfuegen(newProcessList, pid);
 		}
-		processList = processList->rest; // check required? use methods?
+		processList = processList->rest; /* check required? use methods? */
 	}
-	processList = newProcessList; // aktualisiere Liste mit aktiven Prozessen
+	processList = newProcessList; /* aktualisiere Liste mit aktiven Prozessen */
 	return 1;
 }
 
@@ -188,9 +190,8 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 				fputs("Aufruf: status\n", stderr);
 			return status();
 		}
-
-		return aufruf(k, forkexec);
 	}
+	return aufruf(k, forkexec);
 }
 
 int interpretiere(Kommando k, int forkexec) {
