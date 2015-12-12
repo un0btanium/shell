@@ -75,40 +75,48 @@ int umlenkungen(Kommando k) {
 
 int status() {
 	int processCount = listeLaenge(processList);
+	int i;
+	Liste newProcessList;
+
 	if (processCount == 0) {
 		fputs("Keine Prozesse aktiv!\n", stderr);
-		return 0;
+		return 1;
 	}
-	Liste newProcessList;
-	int i;
 
-	printf("PID		PGID	STATUS		PROG\n");
+	printf("NUM	PID		PGID	STATUS		PROG\n");
 	for (i = 1; i <= processCount; i++) {
-		int pid = processList->kopf;
+		printf("test\n");
+		int pid = *(int*) listeKopf(processList);
 		int status;
-		int pid_t = waitpid(pid, status, WNOHANG | WUNTRACED);
+		printf("test1\n");
+		int pid_t = waitpid(pid, &status, WNOHANG | WUNTRACED | WCONTINUED);
+		printf("test2\n");
 
-		if (pid_t == -1) { // ERROR
-			printf("%d		%d	", pid_t, pid);
-			fputs("Error!	", stderr);
-			printf("%s\n", "(path no yet implemented)");
-		} else if (pid_t == 0)		// RUNNING
-			printf("%d		%d	%d		%s\n", pid_t, pid, "running",
+		if (pid_t == 0) { /* running */
+			printf("%d	%d		%d	%s		%s\n", i, &pid, &pid, "running",
 					"(path not yet implemented)");
-		else
-			// STOPPED OR TERMINATED
-			printf("%d		%d	%d		%s\n", pid_t, pid, status,
+//			if (listeLaenge(newProcessList) == 0) /* Prozessliste besitzt keine Einträge */
+//				newProcessList = listeNeu(pid);
+//			else
+//				/* Prozessliste hat bereits Prozess-IDs enthalten */
+//				newProcessList = listeAnfuegen(newProcessList, pid);
+		} else if (WIFEXITED(status)) /* process terminated normally */
+			printf("%d	%d		%d	%s%d%s		%s\n", i, pid_t, pid, "exit(",
+					WEXITSTATUS(status), ")", "(path not yet implemented)");
+		else if (WIFSIGNALED(status)) /* process was terminated by a signal */
+			printf("%d	%d		%d	%s%d%s		%s\n", i, pid_t, pid, "signal(",
+					WTERMSIG(status), ")", "(path not yet implemented)");
+		else if (WIFSTOPPED(status)) /* process was stopped by delivery of a signal */
+			printf("%d	%d		%d	%s%d%s		%s\n", i, pid_t, pid, "stopped(",
+					WSTOPSIG(status), ")", "(path not yet implemented)");
+		else if (WIFCONTINUED(status)) /* process was resumed by delivery of SIGCONT */
+			printf("%d	%d		%d	%s		%s\n", i, pid_t, pid, "continued",
 					"(path not yet implemented)");
 
-		if (pid_t == 0) {
-			if (listeLaenge(newProcessList) == 0)
-				newProcessList = listeNeu(pid);
-			else
-				newProcessList = listeAnfuegen(newProcessList, pid);
-		}
-		processList = processList->rest; // check required? use methods?
+		if (i != processCount)
+			processList = listeRest(processList);
 	}
-	processList = newProcessList; // aktualisiere Liste mit aktiven Prozessen
+	processList = newProcessList;
 	return 1;
 }
 
@@ -131,15 +139,14 @@ int aufruf(Kommando k, int forkexec) {
 			abbruch("interner Fehler 001"); /* sollte nie ausgeführt werden */
 			/* no break */
 		default:
-			if (k->endeabwarten) /* Prozess im Vordergrund ?? */
+			if (listeLaenge(processList) == 0) /* Prozessliste besitzt keine Einträge */
+				processList = listeNeu((int *) pid);
+			else
+				/* Prozessliste hat bereits Prozess-IDs enthalten */
+				processList = listeAnfuegen(processList, (int *) pid);
+			printf("PID: %d\n", pid);
+			if (k->endeabwarten) /* Prozess im Vordergrund */
 				waitpid(pid, NULL, 0);
-			else { /* Prozess im Hintergrund */
-				if (listeLaenge(processList) == 0) /* Prozessliste noch nicht inizialisiert */
-					processList = listeNeu(pid);
-				else
-					/* Prozessliste hat bereits Prozess-IDs enthalten */
-					processList = listeAnfuegen(processList, pid);
-			}
 			return 0;
 		}
 	}
@@ -157,7 +164,7 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 	char **worte = k->u.einfach.worte;
 	int anzahl = k->u.einfach.wortanzahl;
 
-	// EXIT
+	/* EXIT */
 	if (strcmp(worte[0], "exit") == 0) {
 		switch (anzahl) {
 		case 1:
@@ -170,6 +177,7 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 		}
 	}
 
+	/* CD */
 	if (strcmp(worte[0], "cd") == 0) {
 		switch (anzahl) {
 		case 1:
@@ -181,16 +189,17 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 		default:
 			fputs("Aufruf: cd [ Dateipfad ]", stderr);
 		}
-
-		// STATUS
-		if (strcmp(worte[0], "status") == 0) {
-			if (anzahl > 1)
-				fputs("Aufruf: status\n", stderr);
-			return status();
-		}
-
-		return aufruf(k, forkexec);
 	}
+
+	/* STATUS */
+	if (strcmp(worte[0], "status") == 0) {
+		if (anzahl > 1)
+			fputs("Aufruf: status\n", stderr);
+		return status();
+	}
+
+	/* PROGRAM CALL */
+	return aufruf(k, forkexec);
 }
 
 int interpretiere(Kommando k, int forkexec) {
