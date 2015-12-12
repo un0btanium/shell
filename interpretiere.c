@@ -55,8 +55,7 @@ int umlenkungen(Kommando k) {
 				abbruch("Fehler WRITE %s\n", umlenkung.pfad);
 			break;
 		case APPEND:
-			if ((file = open(umlenkung.pfad, O_RDWR | O_APPEND | O_CREAT))
-					== -1)
+			if ((file = open(umlenkung.pfad, O_RDWR | O_APPEND | O_CREAT)) == -1)
 				abbruch("Fehler APPEND %s\n", umlenkung.pfad);
 			break;
 		}
@@ -144,7 +143,7 @@ int aufruf(Kommando k, int forkexec) {
 			else
 				/* Prozessliste hat bereits Prozess-IDs enthalten */
 				processList = listeAnfuegen(processList, (int *) pid);
-			printf("PID: %d\n", pid);
+			//printf("PID: %d\n", pid);
 			if (k->endeabwarten) /* Prozess im Vordergrund */
 				waitpid(pid, NULL, 0);
 			return 0;
@@ -176,21 +175,6 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 			return -1;
 		}
 	}
-
-	/* CD */
-	if (strcmp(worte[0], "cd") == 0) {
-		switch (anzahl) {
-		case 1:
-			fputs(" NOT IMPLEMENTED. Should lead to homedir", stderr);
-			break;
-		case 2:
-			fputs(" NOT IMPLEMENTED. Should lead to path", stderr);
-			break;
-		default:
-			fputs("Aufruf: cd [ Dateipfad ]", stderr);
-		}
-	}
-
 	/* STATUS */
 	if (strcmp(worte[0], "status") == 0) {
 		if (anzahl > 1)
@@ -198,8 +182,23 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 		return status();
 	}
 
-	/* PROGRAM CALL */
-	return aufruf(k, forkexec);
+	/* CD */
+	if (strcmp(worte[0], "cd") == 0) {
+		switch (anzahl) {
+		case 1:
+			if((chdir(getenv("HOME"))) == -1) fputs("cd couldnt find home-directory", stderr);
+			break;
+		case 2:
+			if((chdir(worte[1])) == -1) fputs("cd couldnt find path", stderr);
+			break;
+		default:
+			fputs("Aufruf: cd [ Dateipfad ]", stderr);
+		}
+	} else
+		/* PROGRAM CALL */
+		return aufruf(k, forkexec);
+
+	return 1;
 }
 
 int interpretiere(Kommando k, int forkexec) {
