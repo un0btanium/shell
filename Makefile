@@ -1,7 +1,7 @@
 CFLAGS=-g -Wall -pedantic
-OBJECTS=shell.o interpretiere.o scanner.o parser.o utils.o kommandos.o listen.o wortspeicher.o
-SOURCES=shell.c interpretiere.c scanner.l parser.y utils.c kommandos.c  wortspeicher.c listen.c 
-CSOURCES=shell.c interpretiere.c scanner.c parser.c utils.c kommandos.c  wortspeicher.c listen.c 
+OBJECTS=shell.o interpretiere.o scanner.o parser.o utils.o kommandos.o listen.o wortspeicher.o process.o
+SOURCES=shell.c interpretiere.c scanner.l parser.y utils.c kommandos.c  wortspeicher.c listen.c process.c
+CSOURCES=shell.c interpretiere.c scanner.c parser.c utils.c kommandos.c  wortspeicher.c listen.c process.c
 
 all: depend shell
 
