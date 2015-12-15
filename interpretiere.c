@@ -14,8 +14,9 @@
 #include "frontend.h"
 #include "parser.h"
 #include "variablen.h"
+#include "process.h"
 
-Liste processList;
+Process listeProzesse;
 
 int interpretiere(Kommando k, int forkexec);
 
@@ -55,7 +56,8 @@ int umlenkungen(Kommando k) {
 				abbruch("Fehler WRITE %s\n", umlenkung.pfad);
 			break;
 		case APPEND:
-			if ((file = open(umlenkung.pfad, O_RDWR | O_APPEND | O_CREAT)) == -1)
+			if ((file = open(umlenkung.pfad, O_RDWR | O_APPEND | O_CREAT))
+					== -1)
 				abbruch("Fehler APPEND %s\n", umlenkung.pfad);
 			break;
 		}
@@ -65,7 +67,7 @@ int umlenkungen(Kommando k) {
 
 		close(file);
 
-		if (i-1 < anzahl)
+		if (i - 1 < anzahl)
 			umlenkungen = listeRest(umlenkungen);
 	}
 
@@ -73,49 +75,58 @@ int umlenkungen(Kommando k) {
 }
 
 int status() {
-	int processCount = listeLaenge(processList);
-	Liste newProcessList;
+	int processCount = processListeLaenge(listeProzesse);
+	Process *liste = &listeProzesse;
 	int i;
 
 	if (processCount == 0) {
 		fputs("Keine Prozesse aktiv!\n", stderr);
 		return 1;
 	}
+	printf("processCount = %d\n", processCount);
+	printf("pid = %d\n", (*liste)->next->pid);
 
 	printf("NUM	PID		PGID	STATUS		PROG\n");
-	for (i = 1; i <= processCount; i++) {
-		printf("test\n");
-		int pid = *(int*) listeKopf(processList);
+	for (i = 1; i <= processCount; i++, liste = (*liste) -> next) { /* TODO doesnt work */
+		int pid = getPID(*liste);
 		int status;
-		printf("test1\n");
 		int pid_t = waitpid(pid, &status, WNOHANG | WUNTRACED | WCONTINUED);
-		printf("test2\n");
 
 		if (pid_t == 0) { /* running */
-			printf("%d	%d		%d	%s		%s\n", i, &pid, &pid, "running",
-					"(path not yet implemented)");
-//			if (listeLaenge(newProcessList) == 0) /* Prozessliste besitzt keine Einträge */
-//				newProcessList = listeNeu(pid);
-//			else
-//				/* Prozessliste hat bereits Prozess-IDs enthalten */
-//				newProcessList = listeAnfuegen(newProcessList, pid);
+			printf("%d	%d		%d	%s		%s\n", i, pid, pid, "running",
+					"");
 		} else if (WIFEXITED(status)) /* process terminated normally */
 			printf("%d	%d		%d	%s%d%s		%s\n", i, pid_t, pid, "exit(",
-					WEXITSTATUS(status), ")", "(path not yet implemented)");
+					WEXITSTATUS(status), ")", "");
 		else if (WIFSIGNALED(status)) /* process was terminated by a signal */
 			printf("%d	%d		%d	%s%d%s		%s\n", i, pid_t, pid, "signal(",
-					WTERMSIG(status), ")", "(path not yet implemented)");
+					WTERMSIG(status), ")", "");
 		else if (WIFSTOPPED(status)) /* process was stopped by delivery of a signal */
 			printf("%d	%d		%d	%s%d%s		%s\n", i, pid_t, pid, "stopped(",
-					WSTOPSIG(status), ")", "(path not yet implemented)");
+					WSTOPSIG(status), ")", "");
 		else if (WIFCONTINUED(status)) /* process was resumed by delivery of SIGCONT */
 			printf("%d	%d		%d	%s		%s\n", i, pid_t, pid, "continued",
-					"(path not yet implemented)");
+					"");
+	}
+
+	/* TODO delete */
+	return 1;
+
+	liste = listeProzesse;
+	/* Delete stopped processes */
+	for (i = 1; i <= processCount; i++) {
+		int pid = getPID(listeProzesse);
+		int status;
+		int pid_t = waitpid(pid, &status, WNOHANG | WUNTRACED | WCONTINUED);
+
+		if (pid_t != 0) { /* running */
+			processLoeschen(pid, &listeProzesse);
+			processCount = processCount - 1;
+		}
 
 		if (i != processCount)
-			processList = listeRest(processList);
+						listeProzesse = listeProzesse->next;
 	}
-	processList = newProcessList;
 	return 1;
 }
 
@@ -138,14 +149,15 @@ int aufruf(Kommando k, int forkexec) {
 			abbruch("interner Fehler 001"); /* sollte nie ausgeführt werden */
 			/* no break */
 		default:
-			if (listeLaenge(processList) == 0) /* Prozessliste besitzt keine Einträge */
-				processList = listeNeu((int *) pid);
-			else
+			if (processListeLaenge(listeProzesse) == 0) { /* Prozessliste besitzt keine Einträge */
+				listeProzesse = processNeu(pid, pid, "running", "program name");
+			} else {
 				/* Prozessliste hat bereits Prozess-IDs enthalten */
-				processList = listeAnfuegen(processList, (int *) pid);
-			//printf("PID: %d\n", pid);
+				listeProzesse = processAnfuegen(pid, pid, "running", "program name", &listeProzesse);
+			}
+			printf("PID: %d\n", pid);
 			if (k->endeabwarten) /* Prozess im Vordergrund */
-				waitpid(pid, NULL, 0);
+				waitpid(pid, NULL, 0); /* STRG+Z ?? */
 			return 0;
 		}
 	}
@@ -186,10 +198,12 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 	if (strcmp(worte[0], "cd") == 0) {
 		switch (anzahl) {
 		case 1:
-			if((chdir(getenv("HOME"))) == -1) fputs("cd couldnt find home-directory", stderr);
+			if ((chdir(getenv("HOME"))) == -1)
+				fputs("cd couldnt find home-directory", stderr);
 			break;
 		case 2:
-			if((chdir(worte[1])) == -1) fputs("cd couldnt find path", stderr);
+			if ((chdir(worte[1])) == -1)
+				fputs("cd couldnt find path", stderr);
 			break;
 		default:
 			fputs("Aufruf: cd [ Dateipfad ]", stderr);
