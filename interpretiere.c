@@ -35,7 +35,7 @@ int interpretiere_pipeline(Kommando k) {
 	Liste restKommandos;
 	Liste l = k->u.sequenz.liste;
 
-	while (!listeIstleer(l)) {
+//	while (!listeIstleer(l)) {
 		einfach = (Kommando) listeKopf(l);
 		restKommandos = listeRest(l);
 		pipe(pipefd);
@@ -60,18 +60,81 @@ int interpretiere_pipeline(Kommando k) {
 				do_execvp(einfach->u.einfach.wortanzahl,
 						einfach->u.einfach.worte);
 				break;
-			/*default: */
+			//default:
+
 			}
 		}
-		l = listeRest(l);
-	}
+//		l = listeRest(l);
+//	}
+//
+//		waitpid(childpid2, NULL, WNOHANG | WUNTRACED | WCONTINUED);
+//		waitpid(childpid, NULL, WNOHANG | WUNTRACED | WCONTINUED);
 
-	waitpid(childpid, NULL, 0);
-	waitpid(childpid2, NULL, 0);
 
 
 	return 0;
 }
+
+int interpretiere_pipeline2(Kommando k){
+	pid_t childpid;
+	int pipefd[2];
+	Liste restKommandos;
+	Liste l = k->u.sequenz.liste;
+	Kommando einfach = (Kommando) listeKopf(l);
+
+	pipe(pipefd);
+	switch (childpid = fork()) {
+	case -1:
+		perror("fork-Fehler");
+		exit(1);
+	case 0:
+		close(pipefd[0]);
+		dup2(pipefd[1], STDOUT_FILENO);
+		do_execvp(einfach->u.einfach.wortanzahl, einfach->u.einfach.worte);
+		break;
+	default:
+		if(listeLaenge(l)>1){
+			restKommandos = listeRest(l);
+			interpretiere_pipeline3(restKommandos, &pipefd);
+		}
+
+	}
+
+	return 0;
+}
+
+int interpretiere_pipeline3(Kommando k, int* pipefd){
+	pid_t childpid;
+	int pipefd2[2];
+	Liste restKommandos;
+	Liste l = k->u.sequenz.liste;
+	Kommando einfach = (Kommando) listeKopf(l);
+
+	pipe(pipefd);
+
+	switch (childpid = fork()) {
+	case -1:
+		perror("fork-Fehler");
+		exit(1);
+	case 0:
+		close(pipefd[1]);
+		dup2(pipefd[0], STDIN_FILENO);
+		close(pipefd2[0]);
+		dup2(pipefd2[1], STDOUT_FILENO);
+		do_execvp(einfach->u.einfach.wortanzahl, einfach->u.einfach.worte);
+		break;
+		if(listeLaenge(l)>1){
+			restKommandos = listeRest(l);
+			interpretiere_pipeline3(restKommandos,*pipefd2);
+		}
+
+	}
+
+	return 0;
+
+}
+
+
 
 int umlenkungen(Kommando k) {
 	int file, i;
@@ -262,8 +325,7 @@ int interpretiere(Kommando k, int forkexec) {
 		return status;
 	case K_PIPE: {
 		/*kommandoZeigen(k);*/
-		status = interpretiere_pipeline(k);
-		return status;
+		return interpretiere_pipeline2(k);
 	}
 	case K_UND: {
 		fputs("Bearbeitung von K_UND noch nicht implementiert", stderr);
