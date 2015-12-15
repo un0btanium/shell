@@ -27,8 +27,49 @@ void do_execvp(int argc, char **args) {
 }
 
 int interpretiere_pipeline(Kommando k) {
-	/* NOT IMPLEMENTED */
-	fputs("NOT IMPLEMENTED", stderr);
+	int pipefd[2];
+	pid_t childpid;
+	pid_t childpid2;
+	/*int leange = listeLaenge(k->u.sequenz.liste); */
+	Kommando einfach;
+	Liste restKommandos;
+	Liste l = k->u.sequenz.liste;
+
+	while (!listeIstleer(l)) {
+		einfach = (Kommando) listeKopf(l);
+		restKommandos = listeRest(l);
+		pipe(pipefd);
+		switch (childpid = fork()) {
+		case -1:
+			perror("fork-Fehler");
+			exit(1);
+		case 0:
+			close(pipefd[0]);
+			dup2(pipefd[1], STDOUT_FILENO);
+			do_execvp(einfach->u.einfach.wortanzahl, einfach->u.einfach.worte);
+			break;
+		default:
+			switch (childpid2 = fork()) {
+			case -1:
+				perror("fork-Fehler");
+				exit(1);
+			case 0:
+				close(pipefd[1]);
+				dup2(pipefd[0], STDIN_FILENO);
+				einfach = (Kommando) listeKopf(restKommandos);
+				do_execvp(einfach->u.einfach.wortanzahl,
+						einfach->u.einfach.worte);
+				break;
+			/*default: */
+			}
+		}
+		l = listeRest(l);
+	}
+
+	waitpid(childpid, NULL, 0);
+	waitpid(childpid2, NULL, 0);
+
+
 	return 0;
 }
 
@@ -55,7 +96,8 @@ int umlenkungen(Kommando k) {
 				abbruch("Fehler WRITE %s\n", umlenkung.pfad);
 			break;
 		case APPEND:
-			if ((file = open(umlenkung.pfad, O_RDWR | O_APPEND | O_CREAT)) == -1)
+			if ((file = open(umlenkung.pfad, O_RDWR | O_APPEND | O_CREAT))
+					== -1)
 				abbruch("Fehler APPEND %s\n", umlenkung.pfad);
 			break;
 		}
@@ -65,7 +107,7 @@ int umlenkungen(Kommando k) {
 
 		close(file);
 
-		if (i-1 < anzahl)
+		if (i - 1 < anzahl)
 			umlenkungen = listeRest(umlenkungen);
 	}
 
@@ -186,10 +228,12 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 	if (strcmp(worte[0], "cd") == 0) {
 		switch (anzahl) {
 		case 1:
-			if((chdir(getenv("HOME"))) == -1) fputs("cd couldnt find home-directory", stderr);
+			if ((chdir(getenv("HOME"))) == -1)
+				fputs("cd couldnt find home-directory", stderr);
 			break;
 		case 2:
-			if((chdir(worte[1])) == -1) fputs("cd couldnt find path", stderr);
+			if ((chdir(worte[1])) == -1)
+				fputs("cd couldnt find path", stderr);
 			break;
 		default:
 			fputs("Aufruf: cd [ Dateipfad ]", stderr);
@@ -203,7 +247,6 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 
 int interpretiere(Kommando k, int forkexec) {
 	int status;
-
 	switch (k->typ) {
 	case K_LEER:
 		return 0;
@@ -217,6 +260,23 @@ int interpretiere(Kommando k, int forkexec) {
 		}
 	}
 		return status;
+	case K_PIPE: {
+		/*kommandoZeigen(k);*/
+		status = interpretiere_pipeline(k);
+		return status;
+	}
+	case K_UND: {
+		fputs("Bearbeitung von K_UND noch nicht implementiert", stderr);
+		break;
+	}
+	case K_ODER: {
+		fputs("Bearbeitung von K_ODER noch nicht implementiert", stderr);
+		break;
+	}
+	case K_IFTHENELSE: {
+		fputs("Bearbeitung von K_IFTHENELSE noch nicht implementiert", stderr);
+		break;
+	}
 	default:
 		fputs("unbekannter Kommandotyp, Bearbeitung nicht implementiert\n",
 		stderr);
