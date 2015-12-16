@@ -6,7 +6,6 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <fcntl.h>
-
 #include "utils.h"
 #include "listen.h"
 #include "wortspeicher.h"
@@ -27,59 +26,51 @@ void do_execvp(int argc, char **args) {
 	exit(1);
 }
 
-int interpretiere_pipeline(Kommando k) {
-	int pipefd[2];
+int interpretiere_pipelineRek(Liste l, int pipefd[2], pid_t cpid) {  // ls -l | grep david | grep shell | grep shell-c
 	pid_t childpid;
-	pid_t childpid2;
-	/*int leange = listeLaenge(k->u.sequenz.liste); */
-	Kommando einfach;
-	Liste restKommandos;
-	Liste l = k->u.sequenz.liste;
+	int pipefd2[2];
+	Kommando einfach = (Kommando) listeKopf(l);
 
-//	while (!listeIstleer(l)) {
-		einfach = (Kommando) listeKopf(l);
-		restKommandos = listeRest(l);
-		pipe(pipefd);
+	if (listeLaenge(l) == 1) {
 		switch (childpid = fork()) {
 		case -1:
 			perror("fork-Fehler");
 			exit(1);
 		case 0:
-			close(pipefd[0]);
-			dup2(pipefd[1], STDOUT_FILENO);
+			close(pipefd[1]);
+			dup2(pipefd[0], STDIN_FILENO);
+			do_execvp(einfach->u.einfach.wortanzahl, einfach->u.einfach.worte);
+			break;
+		default: close(pipefd[0]); return 0;
+		}
+
+	} else {
+		pipe(pipefd2);
+		switch (childpid = fork()) {
+		case -1:
+			perror("fork-Fehler");
+			exit(1);
+		case 0:
+			close(pipefd[1]);
+			close(pipefd2[0]);
+			dup2(pipefd[0], STDIN_FILENO);
+			dup2(pipefd2[1], STDOUT_FILENO);
 			do_execvp(einfach->u.einfach.wortanzahl, einfach->u.einfach.worte);
 			break;
 		default:
-			switch (childpid2 = fork()) {
-			case -1:
-				perror("fork-Fehler");
-				exit(1);
-			case 0:
-				close(pipefd[1]);
-				dup2(pipefd[0], STDIN_FILENO);
-				einfach = (Kommando) listeKopf(restKommandos);
-				do_execvp(einfach->u.einfach.wortanzahl,
-						einfach->u.einfach.worte);
-				break;
-			//default:
-
-			}
+			close(pipefd[0]);
+			close(pipefd2[1]);
 		}
-//		l = listeRest(l);
-//	}
-//
-//		waitpid(childpid2, NULL, WNOHANG | WUNTRACED | WCONTINUED);
-//		waitpid(childpid, NULL, WNOHANG | WUNTRACED | WCONTINUED);
 
+	}
 
+	return interpretiere_pipelineRek(listeRest(l), pipefd2, childpid);
 
-	return 0;
 }
 
-int interpretiere_pipeline2(Kommando k){
+int interpretiere_pipeline(Kommando k) {
 	pid_t childpid;
 	int pipefd[2];
-	Liste restKommandos;
 	Liste l = k->u.sequenz.liste;
 	Kommando einfach = (Kommando) listeKopf(l);
 
@@ -94,48 +85,11 @@ int interpretiere_pipeline2(Kommando k){
 		do_execvp(einfach->u.einfach.wortanzahl, einfach->u.einfach.worte);
 		break;
 	default:
-		if(listeLaenge(l)>1){
-			restKommandos = listeRest(l);
-			interpretiere_pipeline3(restKommandos, &pipefd);
-		}
-
-	}
-
-	return 0;
-}
-
-int interpretiere_pipeline3(Kommando k, int* pipefd){
-	pid_t childpid;
-	int pipefd2[2];
-	Liste restKommandos;
-	Liste l = k->u.sequenz.liste;
-	Kommando einfach = (Kommando) listeKopf(l);
-
-	pipe(pipefd);
-
-	switch (childpid = fork()) {
-	case -1:
-		perror("fork-Fehler");
-		exit(1);
-	case 0:
 		close(pipefd[1]);
-		dup2(pipefd[0], STDIN_FILENO);
-		close(pipefd2[0]);
-		dup2(pipefd2[1], STDOUT_FILENO);
-		do_execvp(einfach->u.einfach.wortanzahl, einfach->u.einfach.worte);
-		break;
-		if(listeLaenge(l)>1){
-			restKommandos = listeRest(l);
-			interpretiere_pipeline3(restKommandos,*pipefd2);
-		}
-
 	}
 
-	return 0;
-
+	return interpretiere_pipelineRek(listeRest(l), pipefd, childpid);
 }
-
-
 
 int umlenkungen(Kommando k) {
 	int file, i;
@@ -177,10 +131,6 @@ int umlenkungen(Kommando k) {
 
 	return 0;
 }
-
-
-
-
 
 //int status() {
 //	int processCount = listeLaenge(processList);
@@ -268,16 +218,10 @@ int umlenkungen(Kommando k) {
 //	exit(1);
 //}
 
-
-
-
-
-
-
-
 int status() {
 	int processCount = processListeLaenge(listeProzesse);
-	Process *liste = &listeProzesse;
+	Process liste = listeProzesse;
+
 	int i;
 
 	if (processCount == 0) {
@@ -285,17 +229,16 @@ int status() {
 		return 1;
 	}
 	printf("processCount = %d\n", processCount);
-	printf("pid = %d\n", (*liste)->next->pid);
+//	printf("pid = %d\n", (*liste)->next->pid);
 
 	printf("NUM	PID		PGID	STATUS		PROG\n");
-	for (i = 1; i <= processCount; i++, liste = (*liste) -> next) { /* TODO doesnt work */
-		int pid = getPID(*liste);
+	for (i = 1; i <= processCount; i++, liste = liste->next) { /* TODO doesnt work */
+		int pid = getPID(liste);
 		int status;
 		int pid_t = waitpid(pid, &status, WNOHANG | WUNTRACED | WCONTINUED);
 
 		if (pid_t == 0) { /* running */
-			printf("%d	%d		%d	%s		%s\n", i, pid, pid, "running",
-					"");
+			printf("%d	%d		%d	%s		%s\n", i, pid, pid, "running", "");
 		} else if (WIFEXITED(status)) /* process terminated normally */
 			printf("%d	%d		%d	%s%d%s		%s\n", i, pid_t, pid, "exit(",
 					WEXITSTATUS(status), ")", "");
@@ -306,8 +249,7 @@ int status() {
 			printf("%d	%d		%d	%s%d%s		%s\n", i, pid_t, pid, "stopped(",
 					WSTOPSIG(status), ")", "");
 		else if (WIFCONTINUED(status)) /* process was resumed by delivery of SIGCONT */
-			printf("%d	%d		%d	%s		%s\n", i, pid_t, pid, "continued",
-					"");
+			printf("%d	%d		%d	%s		%s\n", i, pid_t, pid, "continued", "");
 	}
 
 	/* TODO delete */
@@ -326,7 +268,7 @@ int status() {
 		}
 
 		if (i != processCount)
-						listeProzesse = listeProzesse->next;
+			listeProzesse = listeProzesse->next;
 	}
 	return 1;
 }
@@ -354,7 +296,8 @@ int aufruf(Kommando k, int forkexec) {
 				listeProzesse = processNeu(pid, pid, "running", "program name");
 			} else {
 				/* Prozessliste hat bereits Prozess-IDs enthalten */
-				listeProzesse = processAnfuegen(pid, pid, "running", "program name", &listeProzesse);
+				listeProzesse = processAnfuegen(pid, pid, "running",
+						"program name", &listeProzesse);
 			}
 			printf("PID: %d\n", pid);
 			if (k->endeabwarten) /* Prozess im Vordergrund */
@@ -433,7 +376,7 @@ int interpretiere(Kommando k, int forkexec) {
 		return status;
 	case K_PIPE: {
 		/*kommandoZeigen(k);*/
-		return interpretiere_pipeline2(k);
+		return interpretiere_pipeline(k);
 	}
 	case K_UND: {
 		fputs("Bearbeitung von K_UND noch nicht implementiert", stderr);
