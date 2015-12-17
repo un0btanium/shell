@@ -26,11 +26,17 @@ void do_execvp(int argc, char **args) {
 	exit(1);
 }
 
-int interpretiere_pipelineRek(Liste l, int pipefd[2], pid_t cpid) {  // ls -l | grep david | grep shell | grep shell-c
+/* pipelining beliebig vieler childs */
+
+int interpretiere_pipelineRek(Liste l, int pipefd[2], pid_t cpid) {
 	pid_t childpid;
 	int pipefd2[2];
 	Kommando einfach = (Kommando) listeKopf(l);
 
+	/* letztes child bekommt nur den output des vorherigen childs,
+	 * sein eigener output bleibt auf standart
+	 * Abbruchbedingung der Rekursion
+	 * */
 	if (listeLaenge(l) == 1) {
 		switch (childpid = fork()) {
 		case -1:
@@ -41,9 +47,12 @@ int interpretiere_pipelineRek(Liste l, int pipefd[2], pid_t cpid) {  // ls -l | 
 			dup2(pipefd[0], STDIN_FILENO);
 			do_execvp(einfach->u.einfach.wortanzahl, einfach->u.einfach.worte);
 			break;
-		default: close(pipefd[0]); return 0;
+		default:
+			close(pipefd[0]);
+			return 0;
 		}
 
+		/* Alle mittleren Childs bekommen input vom vorherigen child ihr output geht ins nächste child */
 	} else {
 		pipe(pipefd2);
 		switch (childpid = fork()) {
@@ -58,21 +67,25 @@ int interpretiere_pipelineRek(Liste l, int pipefd[2], pid_t cpid) {  // ls -l | 
 			do_execvp(einfach->u.einfach.wortanzahl, einfach->u.einfach.worte);
 			break;
 		default:
-			close(pipefd[0]);
 			close(pipefd2[1]);
+			return interpretiere_pipelineRek(listeRest(l), pipefd2, childpid);
 		}
 
 	}
 
-	return interpretiere_pipelineRek(listeRest(l), pipefd2, childpid);
+	return 1;
 
 }
+
+/* Einstieg der Prozesskette */
 
 int interpretiere_pipeline(Kommando k) {
 	pid_t childpid;
 	int pipefd[2];
 	Liste l = k->u.sequenz.liste;
 	Kommando einfach = (Kommando) listeKopf(l);
+
+	/* ersters child behält sein standartinput, standartouput geht ins nächste child */
 
 	pipe(pipefd);
 	switch (childpid = fork()) {
@@ -89,6 +102,34 @@ int interpretiere_pipeline(Kommando k) {
 	}
 
 	return interpretiere_pipelineRek(listeRest(l), pipefd, childpid);
+}
+
+int interpretiere_und(Kommando k) {
+
+	Liste l = k->u.sequenz.liste;
+	pid_t childpid[listeLaenge(l)];
+	int status[listeLaenge(l)];
+
+	Kommando einfach = (Kommando) listeKopf(l);
+	int i;
+	for(i = 0; i<listeLaenge(l); i++)  {
+
+		switch (childpid[i] = fork()) {
+		case -1:
+			perror("fork-Fehler");
+			exit(1);
+		case 0:
+			do_execvp(einfach->u.einfach.wortanzahl, einfach->u.einfach.worte);
+			break;
+		default:
+			l = listeRest(l);
+			einfach = (Kommando) listeKopf(l);
+			waitpid(childpid[i], status+i, WNOHANG | WUNTRACED | WCONTINUED);
+			/* hier ein if exit(1) und abbruch aller prozesse falls true */
+		}
+	}
+
+	return 0;
 }
 
 int umlenkungen(Kommando k) {
@@ -297,7 +338,7 @@ int aufruf(Kommando k, int forkexec) {
 			} else {
 				/* Prozessliste hat bereits Prozess-IDs enthalten */
 				listeProzesse = processAnfuegen(pid, pid, "running",
-						"program name", &listeProzesse);
+						"program name", listeProzesse);
 			}
 			printf("PID: %d\n", pid);
 			if (k->endeabwarten) /* Prozess im Vordergrund */
@@ -380,7 +421,7 @@ int interpretiere(Kommando k, int forkexec) {
 	}
 	case K_UND: {
 		fputs("Bearbeitung von K_UND noch nicht implementiert", stderr);
-		break;
+		return interpretiere_und(k);
 	}
 	case K_ODER: {
 		fputs("Bearbeitung von K_ODER noch nicht implementiert", stderr);
