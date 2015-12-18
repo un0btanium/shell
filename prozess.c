@@ -20,13 +20,29 @@ ProzessListe prozessListeAnfuegen(ProzessListe liste, Prozess prozess) {
 
 
 Prozess prozessNeu(int pid, int pgid, int status, char* path) {
-	Prozess neu = reserviere(sizeof(struct prozess));
+	Prozess neu = reserviere(sizeof(Prozess));
 	neu->pid 	= pid;
 	neu->pgid 	= pgid;
 	neu->status = status;
 	neu->path	= path;
 	return neu;
 }
+
+ProzessListe prozessAnfuegen(int pid, int pgid, int status, char* path, ProzessListe prozesse) {
+
+
+	if (anzahlProzesse(prozesse) == 0) { /* Prozessliste besitzt keine Einträge */
+		prozesse = prozessListeNeu(
+				prozessNeu(pid, pgid, status, path));
+	} else { /* Prozessliste hat bereits Prozess-IDs enthalten */
+		prozesse = prozessListeAnfuegen(prozesse,
+				prozessNeu(pid, pgid, status, path));
+	}
+
+	return prozesse;
+}
+
+
 
 
 void prozessLoeschen(ProzessListe liste, int pid) {
@@ -58,6 +74,3 @@ void prozessLoeschen(ProzessListe liste, int pid) {
 int anzahlProzesse(ProzessListe liste) {
 	return liste==NULL ? 0 : 1+anzahlProzesse(liste->naechster);
 }
-
-
-

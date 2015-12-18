@@ -55,9 +55,10 @@ int interpretiere_pipelineRek(Liste l, int pipefd[2], pid_t cpid) {
 			break;
 		default:
 			if ((setpgid(childpid, 0)) == -1) {
-				perror("setpgid-Fehler letzter Prozess");
+				perror("setpgid-Fehler im letzten Prozess");
 			}
 			waitpid(childpid, &status, WUNTRACED);
+			prozessAnfuegen(childpid, getpgid(childpid), status, "program name" , prozesse);
 			close(pipefd[0]);
 			return 0;
 		}
@@ -76,19 +77,13 @@ int interpretiere_pipelineRek(Liste l, int pipefd[2], pid_t cpid) {
 			dup2(pipefd[0], STDIN_FILENO);
 			dup2(pipefd2[1], STDOUT_FILENO);
 			if ((setpgid(childpid, 0)) == -1) {
-				perror("setpgid-Fehler mittlerer Prozess");
+				perror("setpgid-Fehler im mittleren Prozess");
 			}
 			interpretiere(einfach, 0);
 			break;
 		default:
 			waitpid(childpid, &status, WUNTRACED);
-			if (anzahlProzesse(prozesse) == 0) { /* Prozessliste besitzt keine Einträge */
-				prozesse = prozessListeNeu(
-						prozessNeu(childpid, getpgid(childpid), status, "program name"));
-			} else { /* Prozessliste hat bereits Prozess-IDs enthalten */
-				prozesse = prozessListeAnfuegen(prozesse,
-						prozessNeu(childpid, getpgid(childpid), status, "program name"));
-			}
+			prozesse = prozessAnfuegen(childpid, getpgid(childpid), status, "program name" , prozesse);
 			close(pipefd2[1]);
 			return interpretiere_pipelineRek(listeRest(l), pipefd2, cpid);
 		}
@@ -123,13 +118,8 @@ int interpretiere_pipeline(Kommando k) {
 		break;
 	default:
 		waitpid(childpid, &status, WUNTRACED);
-		if (anzahlProzesse(prozesse) == 0) { /* Prozessliste besitzt keine Einträge */
-			prozesse = prozessListeNeu(
-					prozessNeu(childpid, getpgid(childpid), status, "program name"));
-		} else { /* Prozessliste hat bereits Prozess-IDs enthalten */
-			prozesse = prozessListeAnfuegen(prozesse,
-					prozessNeu(childpid, getpgid(childpid), status, "program name"));
-		}
+		printf("pid: %d pgid: %d!\n", getpid(), getpgid(getpid()));
+		prozesse = prozessAnfuegen(childpid, getpgid(childpid), status, "program name" , prozesse);
 		close(pipefd[1]);
 	}
 
@@ -222,13 +212,7 @@ int interpretiere_und(Kommando k) {
 			l = listeRest(l);
 			einfach = (Kommando) listeKopf(l);
 			waitpid(childpid[i], status + i, WNOHANG | WUNTRACED | WCONTINUED);
-			if (anzahlProzesse(prozesse) == 0) { /* Prozessliste besitzt keine Einträge */
-				prozesse = prozessListeNeu(
-						prozessNeu(childpid[i], getpgid(childpid[i]), status[i], "program name"));
-			} else { /* Prozessliste hat bereits Prozess-IDs enthalten */
-				prozesse = prozessListeAnfuegen(prozesse,
-						prozessNeu(childpid[i], getpgid(childpid[i]), status[i], "program name"));
-			}
+			prozesse = prozessAnfuegen(childpid[i], getpgid(childpid[i]), status[i], "program name" , prozesse);
 			/* hier ein if exit(1) und abbruch aller prozesse falls true */
 		}
 	}
@@ -343,7 +327,7 @@ int aufruf(Kommando k, int forkexec) {
 	/* Programmaufruf im aktuellen Prozess (forkexec==0)
 	 oder Subprozess (forkexec==1)
 	 */
-
+int status;
 	if (forkexec) {
 		int pid = fork();
 		switch (pid) {
@@ -357,13 +341,9 @@ int aufruf(Kommando k, int forkexec) {
 			abbruch("interner Fehler 001"); /* sollte nie ausgeführt werden */
 			/* no break */
 		default:
-			if (anzahlProzesse(prozesse) == 0) { /* Prozessliste besitzt keine Einträge */
-				prozesse = prozessListeNeu(
-						prozessNeu(pid, getpgid(pid), 0, "program name"));
-			} else { /* Prozessliste hat bereits Prozess-IDs enthalten */
-				prozesse = prozessListeAnfuegen(prozesse,
-						prozessNeu(pid, getpgid(pid), 0, "program name"));
-			}
+			//waitpid(pid, &status ,WNOHANG | WUNTRACED | WCONTINUED);
+			prozesse = prozessAnfuegen(pid, getpgid(pid), status, "program name", prozesse);
+			printf("Errno von getpgid: %s  " , strerror(errno));
 			printf("PID: %d\n", pid);
 			if (k->endeabwarten) /* Prozess im Vordergrund */
 				waitpid(pid, NULL, 0); /* STRG+Z ?? signalbehandlung?? */
