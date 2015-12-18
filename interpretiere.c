@@ -14,6 +14,9 @@
 #include "parser.h"
 #include "variablen.h"
 #include "prozess.h"
+#include "errno.h"
+
+extern int errno;
 
 ProzessListe prozesse;
 
@@ -78,8 +81,14 @@ int interpretiere_pipelineRek(Liste l, int pipefd[2], pid_t cpid) {
 			interpretiere(einfach, 0);
 			break;
 		default:
-
 			waitpid(childpid, &status, WUNTRACED);
+			if (anzahlProzesse(prozesse) == 0) { /* Prozessliste besitzt keine Einträge */
+				prozesse = prozessListeNeu(
+						prozessNeu(childpid, getpgid(childpid), status, "program name"));
+			} else { /* Prozessliste hat bereits Prozess-IDs enthalten */
+				prozesse = prozessListeAnfuegen(prozesse,
+						prozessNeu(childpid, getpgid(childpid), status, "program name"));
+			}
 			close(pipefd2[1]);
 			return interpretiere_pipelineRek(listeRest(l), pipefd2, cpid);
 		}
@@ -94,8 +103,8 @@ int interpretiere_pipelineRek(Liste l, int pipefd[2], pid_t cpid) {
 
 int interpretiere_pipeline(Kommando k) {
 
-	kommandoZeigen(k);
 	pid_t childpid;
+	int status;
 	int pipefd[2];
 	Liste l = k->u.sequenz.liste;
 	Kommando einfach = (Kommando) listeKopf(l);
@@ -113,6 +122,14 @@ int interpretiere_pipeline(Kommando k) {
 		interpretiere(einfach, 0);
 		break;
 	default:
+		waitpid(childpid, &status, WUNTRACED);
+		if (anzahlProzesse(prozesse) == 0) { /* Prozessliste besitzt keine Einträge */
+			prozesse = prozessListeNeu(
+					prozessNeu(childpid, getpgid(childpid), status, "program name"));
+		} else { /* Prozessliste hat bereits Prozess-IDs enthalten */
+			prozesse = prozessListeAnfuegen(prozesse,
+					prozessNeu(childpid, getpgid(childpid), status, "program name"));
+		}
 		close(pipefd[1]);
 	}
 
@@ -205,6 +222,13 @@ int interpretiere_und(Kommando k) {
 			l = listeRest(l);
 			einfach = (Kommando) listeKopf(l);
 			waitpid(childpid[i], status + i, WNOHANG | WUNTRACED | WCONTINUED);
+			if (anzahlProzesse(prozesse) == 0) { /* Prozessliste besitzt keine Einträge */
+				prozesse = prozessListeNeu(
+						prozessNeu(childpid[i], getpgid(childpid[i]), status[i], "program name"));
+			} else { /* Prozessliste hat bereits Prozess-IDs enthalten */
+				prozesse = prozessListeAnfuegen(prozesse,
+						prozessNeu(childpid[i], getpgid(childpid[i]), status[i], "program name"));
+			}
 			/* hier ein if exit(1) und abbruch aller prozesse falls true */
 		}
 	}
@@ -235,8 +259,7 @@ int umlenkungen(Kommando k) {
 				abbruch("Fehler WRITE, Status = %d %s\n", errno ,umlenkung.pfad);
 			break;
 		case APPEND:
-			if ((file = open(umlenkung.pfad, O_RDWR | O_APPEND | O_CREAT, 0644))
-					== -1)
+			if ((file = open(umlenkung.pfad, O_RDWR | O_APPEND | O_CREAT, 0644)) == -1)
 				abbruch("Fehler APPEND %s\n", umlenkung.pfad);
 			break;
 		}
@@ -334,13 +357,12 @@ int aufruf(Kommando k, int forkexec) {
 			abbruch("interner Fehler 001"); /* sollte nie ausgeführt werden */
 			/* no break */
 		default:
-
 			if (anzahlProzesse(prozesse) == 0) { /* Prozessliste besitzt keine Einträge */
 				prozesse = prozessListeNeu(
-						prozessNeu(pid, pid, 0, "program name"));
+						prozessNeu(pid, getpgid(pid), 0, "program name"));
 			} else { /* Prozessliste hat bereits Prozess-IDs enthalten */
 				prozesse = prozessListeAnfuegen(prozesse,
-						prozessNeu(pid, pid, 0, "program name"));
+						prozessNeu(pid, getpgid(pid), 0, "program name"));
 			}
 			printf("PID: %d\n", pid);
 			if (k->endeabwarten) /* Prozess im Vordergrund */
