@@ -112,7 +112,6 @@ int interpretiere_pipeline(Kommando k) {
 		perror("fork-Fehler");
 		exit(1);
 	case 0:
-		setpgid(childpid, childpid);
 		close(pipefd[0]);
 		dup2(pipefd[1], STDOUT_FILENO);
 		interpretiere(einfach, 0);
