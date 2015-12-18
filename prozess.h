@@ -1,8 +1,8 @@
-typedef struct prozess{
+typedef struct {
 	int pid;
 	int pgid;
 	int status;
-	char *path;
+	char path[100];
 } *Prozess;
 
 typedef struct prozessListe {
@@ -13,6 +13,7 @@ typedef struct prozessListe {
 
 ProzessListe prozessListeNeu(Prozess prozess);
 ProzessListe prozessListeAnfuegen(ProzessListe liste, Prozess prozess);
+ProzessListe prozessAnfuegen(int pid, int pgid, int status, char* path, ProzessListe prozesse);
 
 Prozess prozessNeu(int pid, int pgid, int status, char* path);
 
