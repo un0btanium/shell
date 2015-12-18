@@ -14,8 +14,10 @@
 #include "parser.h"
 #include "variablen.h"
 #include "process.h"
+#include "errno.h"
 
 Process listeProzesse;
+extern int errno;
 
 int interpretiere(Kommando k, int forkexec);
 
@@ -30,6 +32,7 @@ void do_execvp(int argc, char **args) {
 
 int interpretiere_pipelineRek(Liste l, int pipefd[2], pid_t cpid) {
 	pid_t childpid;
+	int status;
 	int pipefd2[2];
 	Kommando einfach = (Kommando) listeKopf(l);
 
@@ -45,9 +48,14 @@ int interpretiere_pipelineRek(Liste l, int pipefd[2], pid_t cpid) {
 		case 0:
 			close(pipefd[1]);
 			dup2(pipefd[0], STDIN_FILENO);
-			do_execvp(einfach->u.einfach.wortanzahl, einfach->u.einfach.worte);
+
+			interpretiere(einfach, 0);
 			break;
 		default:
+			if ((setpgid(childpid, 0)) == -1) {
+				perror("setpgid-Fehler letzter Prozess");
+			}
+			waitpid(childpid, &status, WUNTRACED);
 			close(pipefd[0]);
 			return 0;
 		}
@@ -55,6 +63,7 @@ int interpretiere_pipelineRek(Liste l, int pipefd[2], pid_t cpid) {
 		/* Alle mittleren Childs bekommen input vom vorherigen child ihr output geht ins nächste child */
 	} else {
 		pipe(pipefd2);
+
 		switch (childpid = fork()) {
 		case -1:
 			perror("fork-Fehler");
@@ -64,11 +73,16 @@ int interpretiere_pipelineRek(Liste l, int pipefd[2], pid_t cpid) {
 			close(pipefd2[0]);
 			dup2(pipefd[0], STDIN_FILENO);
 			dup2(pipefd2[1], STDOUT_FILENO);
-			do_execvp(einfach->u.einfach.wortanzahl, einfach->u.einfach.worte);
+			if ((setpgid(childpid, 0)) == -1) {
+				perror("setpgid-Fehler mittlerer Prozess");
+			}
+			interpretiere(einfach, 0);
 			break;
 		default:
+
+			waitpid(childpid, &status, WUNTRACED);
 			close(pipefd2[1]);
-			return interpretiere_pipelineRek(listeRest(l), pipefd2, childpid);
+			return interpretiere_pipelineRek(listeRest(l), pipefd2, cpid);
 		}
 
 	}
@@ -77,9 +91,11 @@ int interpretiere_pipelineRek(Liste l, int pipefd[2], pid_t cpid) {
 
 }
 
-/* Einstieg der Prozesskette */
+/* Einstieg der Prozesskette *//* ls -l | grep david | grep shell.c > david.txt */
 
 int interpretiere_pipeline(Kommando k) {
+
+	kommandoZeigen(k);
 	pid_t childpid;
 	int pipefd[2];
 	Liste l = k->u.sequenz.liste;
@@ -95,7 +111,7 @@ int interpretiere_pipeline(Kommando k) {
 	case 0:
 		close(pipefd[0]);
 		dup2(pipefd[1], STDOUT_FILENO);
-		do_execvp(einfach->u.einfach.wortanzahl, einfach->u.einfach.worte);
+		interpretiere(einfach, 0);
 		break;
 	default:
 		close(pipefd[1]);
@@ -104,6 +120,72 @@ int interpretiere_pipeline(Kommando k) {
 	return interpretiere_pipelineRek(listeRest(l), pipefd, childpid);
 }
 
+/* Pipeline Iterativ, lahm und eckelig */
+
+//int interpretiere_pipeline(Kommando k) {
+//	Liste l = k->u.sequenz.liste;
+//	pid_t childpid[listeLaenge(l)];
+//	int status;
+//	int numbOfPip = listeLaenge(l) - 1;
+//	int pipefd[numbOfPip * 2];
+//	Kommando einfach = (Kommando) listeKopf(l);
+//	int count = 0;
+//	int i;
+//	for (i = 0; i < numbOfPip; i++) {
+//		if (pipe(pipefd + i * 2) < 0) {
+//			perror("pipe-Fehler");
+//		}
+//	}
+//
+//	while (!listeIstleer(l)) {
+//		switch (childpid[count / 2] = fork()) {
+//
+//		case -1:
+//			perror("fork-Fehler");
+//			exit(1);
+//
+//		case 0:
+//			/* if not first command */
+//			if (count != 0) {
+//				if (dup2(pipefd[count - 2], STDIN_FILENO) < 0) {
+//					perror("dup2-Fehler (not first)");
+//					exit(1);
+//				}
+//			}
+//			/* if not last command*/
+//			if (listeLaenge(l) > 1) {
+//				if (dup2(pipefd[count + 1], STDOUT_FILENO) < 0) {
+//					perror("dup2-Fehler (not last)");
+//					exit(1);
+//				}
+//			}
+//			for (i = 0; i < 2 * numbOfPip; i++) {
+//				close(pipefd[i]);
+//			}
+//
+//			interpretiere(einfach, 0);
+//			break;
+//		default:
+//			if ((setpgid(childpid[count / 2], childpid[0])) == -1) {
+//				perror("setpgid-Fehler");
+//			}
+//			l = listeRest(l);
+//			if (!listeIstleer(l))
+//				einfach = (Kommando) listeKopf(l);
+//			count += 2;
+//		}
+//	}
+//
+//	for (i = 0; i < 2 * numbOfPip; i++) {
+//		close(pipefd[i]);
+//	}
+//
+//	for (i = 0; i < numbOfPip + 1; i++) {
+//		waitpid(childpid[i], &status, WUNTRACED);
+//	}
+//
+//	return 1;
+//}
 int interpretiere_und(Kommando k) {
 
 	Liste l = k->u.sequenz.liste;
@@ -112,7 +194,7 @@ int interpretiere_und(Kommando k) {
 
 	Kommando einfach = (Kommando) listeKopf(l);
 	int i;
-	for(i = 0; i<listeLaenge(l); i++)  {
+	for (i = 0; i < listeLaenge(l); i++) {
 
 		switch (childpid[i] = fork()) {
 		case -1:
@@ -124,7 +206,7 @@ int interpretiere_und(Kommando k) {
 		default:
 			l = listeRest(l);
 			einfach = (Kommando) listeKopf(l);
-			waitpid(childpid[i], status+i, WNOHANG | WUNTRACED | WCONTINUED);
+			waitpid(childpid[i], status + i, WNOHANG | WUNTRACED | WCONTINUED);
 			/* hier ein if exit(1) und abbruch aller prozesse falls true */
 		}
 	}
@@ -151,11 +233,11 @@ int umlenkungen(Kommando k) {
 				abbruch("Fehler READ %s\n", umlenkung.pfad);
 			break;
 		case WRITE:
-			if ((file = open(umlenkung.pfad, O_RDWR | O_TRUNC | O_CREAT)) == -1)
-				abbruch("Fehler WRITE %s\n", umlenkung.pfad);
+			if ((file = open(umlenkung.pfad, O_RDWR | O_TRUNC | O_CREAT, 0644)) == -1)
+				abbruch("Fehler WRITE, Status = %d %s\n", errno ,umlenkung.pfad);
 			break;
 		case APPEND:
-			if ((file = open(umlenkung.pfad, O_RDWR | O_APPEND | O_CREAT))
+			if ((file = open(umlenkung.pfad, O_RDWR | O_APPEND | O_CREAT, 0644))
 					== -1)
 				abbruch("Fehler APPEND %s\n", umlenkung.pfad);
 			break;
