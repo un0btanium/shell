@@ -54,11 +54,11 @@ int interpretiere_pipelineRek(Liste l, int pipefd[2], pid_t cpid) {
 			interpretiere(einfach, 0);
 			break;
 		default:
-			if ((setpgid(childpid, 0)) == -1) {
+			if ((setpgid(childpid, cpid)) == -1) {
 				perror("setpgid-Fehler im letzten Prozess");
 			}
 			waitpid(childpid, &status, WUNTRACED);
-			prozessAnfuegen(childpid, getpgid(childpid), status, "program name" , prozesse);
+			prozesse = prozessAnfuegen(childpid, getpgid(childpid), status, einfach->u.einfach.worte[0] , prozesse);
 			close(pipefd[0]);
 			return 0;
 		}
@@ -76,14 +76,14 @@ int interpretiere_pipelineRek(Liste l, int pipefd[2], pid_t cpid) {
 			close(pipefd2[0]);
 			dup2(pipefd[0], STDIN_FILENO);
 			dup2(pipefd2[1], STDOUT_FILENO);
-			if ((setpgid(childpid, 0)) == -1) {
+			if ((setpgid(childpid, cpid)) == -1) {
 				perror("setpgid-Fehler im mittleren Prozess");
 			}
 			interpretiere(einfach, 0);
 			break;
 		default:
 			waitpid(childpid, &status, WUNTRACED);
-			prozesse = prozessAnfuegen(childpid, getpgid(childpid), status, "program name" , prozesse);
+			prozesse = prozessAnfuegen(childpid, getpgid(childpid), status, einfach->u.einfach.worte[0] , prozesse);
 			close(pipefd2[1]);
 			return interpretiere_pipelineRek(listeRest(l), pipefd2, cpid);
 		}
@@ -112,14 +112,18 @@ int interpretiere_pipeline(Kommando k) {
 		perror("fork-Fehler");
 		exit(1);
 	case 0:
+		setpgid(childpid, childpid);
 		close(pipefd[0]);
 		dup2(pipefd[1], STDOUT_FILENO);
 		interpretiere(einfach, 0);
 		break;
 	default:
 		waitpid(childpid, &status, WUNTRACED);
-		printf("pid: %d pgid: %d!\n", getpid(), getpgid(getpid()));
-		prozesse = prozessAnfuegen(childpid, getpgid(childpid), status, "program name" , prozesse);
+
+		if ((setpgid(childpid, childpid)) == -1) {
+			perror("setpgid-Fehler im ersten Prozess");
+		}
+		prozesse = prozessAnfuegen(childpid, getpgid(childpid), status, einfach->u.einfach.worte[0] , prozesse);
 		close(pipefd[1]);
 	}
 
@@ -212,7 +216,7 @@ int interpretiere_und(Kommando k) {
 			l = listeRest(l);
 			einfach = (Kommando) listeKopf(l);
 			waitpid(childpid[i], status + i, WNOHANG | WUNTRACED | WCONTINUED);
-			prozesse = prozessAnfuegen(childpid[i], getpgid(childpid[i]), status[i], "program name" , prozesse);
+			prozesse = prozessAnfuegen(childpid[i], getpgid(childpid[i]), status[i], einfach->u.einfach.worte[0] , prozesse);
 			/* hier ein if exit(1) und abbruch aller prozesse falls true */
 		}
 	}
@@ -327,7 +331,8 @@ int aufruf(Kommando k, int forkexec) {
 	/* Programmaufruf im aktuellen Prozess (forkexec==0)
 	 oder Subprozess (forkexec==1)
 	 */
-int status;
+char* prog = k->u.einfach.worte[0];
+int status = -999;
 	if (forkexec) {
 		int pid = fork();
 		switch (pid) {
@@ -342,9 +347,11 @@ int status;
 			/* no break */
 		default:
 			//waitpid(pid, &status ,WNOHANG | WUNTRACED | WCONTINUED);
-			prozesse = prozessAnfuegen(pid, getpgid(pid), status, "program name", prozesse);
-			printf("Errno von getpgid: %s  " , strerror(errno));
-			printf("PID: %d\n", pid);
+			setpgid(pid, pid);
+			prozesse = prozessAnfuegen(pid, getpgid(pid), status, prog, prozesse);
+			printf("Errno von getpgid: %s  \n" , strerror(errno));
+			printf("PID und GPID von main: 	%d %d \n", getpid(), getpgid(getpid()));
+			printf("PID und GPID von child: %d %d \n", pid, getpgid(pid));
 			if (k->endeabwarten) /* Prozess im Vordergrund */
 				waitpid(pid, NULL, 0); /* STRG+Z ?? signalbehandlung?? */
 			return 0;
