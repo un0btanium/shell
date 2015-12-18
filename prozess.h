@@ -16,5 +16,4 @@ ProzessListe prozessListeAnfuegen(ProzessListe liste, Prozess prozess);
 
 Prozess prozessNeu(int pid, int pgid, int status, char* path);
 
-void prozessLoeschen(ProzessListe liste, int pid);
 int anzahlProzesse(ProzessListe liste);
