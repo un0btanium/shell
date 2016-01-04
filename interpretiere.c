@@ -340,7 +340,8 @@ int aufruf(Kommando k, int forkexec) {
 	 oder Subprozess (forkexec==1)
 	 */
 	char* prog = k->u.einfach.worte[0];
-	int status = -999;
+	int status = 0;
+
 	if (forkexec) {
 		int pid = fork();
 		switch (pid) {
@@ -354,16 +355,14 @@ int aufruf(Kommando k, int forkexec) {
 			abbruch("interner Fehler 001"); /* sollte nie ausgeführt werden */
 			/* no break */
 		default:
-			//waitpid(pid, &status ,WNOHANG | WUNTRACED | WCONTINUED);
 			setpgid(pid, pid);
 			prozesse = prozessAnfuegen(pid, getpgid(pid), status, prog,
 					prozesse);
-			//printf("Errno von getpgid: %s  \n", strerror(errno));
-			//printf("PID und GPID von main: 	%d %d \n", getpid(), getpgid(getpid()));
-			//printf("PID und GPID von child: %d %d \n", pid, getpgid(pid));
-			if (k->endeabwarten) /* Prozess im Vordergrund */
-				waitpid(pid, NULL, 0); /* STRG+Z ?? signalbehandlung?? */
-			return 0;
+			if (k->endeabwarten) { /* Prozess im Vordergrund */
+				waitpid(pid, &status, 0); /* STRG+Z ?? signalbehandlung?? */
+				//printf("%d ", status);
+			}
+			return status;
 		}
 	}
 
@@ -447,8 +446,7 @@ int interpretiere(Kommando k, int forkexec) {
 		while (!listeIstleer(l)) {
 			status = interpretiere((Kommando) listeKopf(l), forkexec);
 			l = listeRest(l);
-			if(WIFEXITED(status))
-				if(WEXITSTATUS(status)==0)break;
+			if(status != 0) break;
 		}
 		return status;
 	}
@@ -457,8 +455,7 @@ int interpretiere(Kommando k, int forkexec) {
 		while (!listeIstleer(l)) {
 			status = interpretiere((Kommando) listeKopf(l), forkexec);
 			l = listeRest(l);
-			if(WIFEXITED(status))
-				if(WEXITSTATUS(status)!=0)break;
+			if(status == 0) break;
 		}
 		return status;
 	}
