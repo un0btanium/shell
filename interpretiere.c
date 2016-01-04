@@ -125,9 +125,9 @@ void do_execvp(int argc, char **args) {
 //	return interpretiere_pipelineRek(listeRest(l), pipefd, childpid);
 //}
 
+
+
 /* Pipeline Iterativ, lahm und eckelig */
-
-
 
 int interpretiere_pipeline(Kommando k) {
 	Liste l = k->u.sequenz.liste;
@@ -295,7 +295,7 @@ int status() {
 	}
 
 	/* Status Output */
-	printf("NUM	PID		PGID	STATUS			PROG\n");
+	printf("NUM	PID		PGID	STATUS			PROG\n\n");
 	for (i = 1, aktuellerListenEintrag = prozesse;
 			aktuellerListenEintrag != NULL; i++, aktuellerListenEintrag =
 					aktuellerListenEintrag->naechster) {
@@ -375,10 +375,9 @@ int aufruf(Kommando k, int forkexec) {
 			setpgid(pid, pid);
 			prozesse = prozessAnfuegen(pid, getpgid(pid), status, prog,
 					prozesse);
-			printf("Errno von getpgid: %s  \n", strerror(errno));
-			printf("PID und GPID von main: 	%d %d \n", getpid(),
-					getpgid(getpid()));
-			printf("PID und GPID von child: %d %d \n", pid, getpgid(pid));
+			//printf("Errno von getpgid: %s  \n", strerror(errno));
+			//printf("PID und GPID von main: 	%d %d \n", getpid(), getpgid(getpid()));
+			//printf("PID und GPID von child: %d %d \n", pid, getpgid(pid));
 			if (k->endeabwarten) /* Prozess im Vordergrund */
 				waitpid(pid, NULL, 0); /* STRG+Z ?? signalbehandlung?? */
 			return 0;
@@ -423,17 +422,17 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 		case 1:
 			if ((chdir(getenv("HOME"))) == -1)
 				fputs("cd couldnt find home-directory", stderr);
-			return 1;
+			return 0;
 			break;
 		case 2:
 			if ((chdir(worte[1])) == -1)
-				fputs("cd couldnt find path", stderr);
-			return 1;
+				fprintf(stderr,"%s: Datei oder Verzeichnis nicht gefunden",worte[1]);
+			return 0;
 			break;
 		default:
 			fputs("Aufruf: cd [ Dateipfad ]", stderr);
 		}
-		return 0;
+		return -1;
 	}
 
 	/* PROGRAM CALL */

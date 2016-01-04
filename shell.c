@@ -58,8 +58,15 @@ void init_signalbehandlung(){
 }
 
 int main(int argc, char *argv[]){
-  int  zeigen=0, ausfuehren=1;
-  int status, i;
+
+	  int  zeigen=0, ausfuehren=1;
+	  int status, i;
+
+	if ((chdir(getenv("HOME"))) == -1)
+		  	 fputs("couldnt find home-directory in main", stderr);
+	if ((chdir("../..")) == -1)
+			  	 fputs("couldnt find root-directory in main", stderr);
+
 
   init_signalbehandlung();
 
