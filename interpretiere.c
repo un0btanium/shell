@@ -195,35 +195,12 @@ int interpretiere_pipeline(Kommando k) {
 	return 1;
 }
 
-
-
-int interpretiere_und(Kommando k) {
+int interpretiere_ifthenelse(Kommando k, int forkexec){
+	int status;
 	Liste l = k->u.sequenz.liste;
-	pid_t childpid[listeLaenge(l)];
-	int status[listeLaenge(l)];
 
-	Kommando einfach = (Kommando) listeKopf(l);
-	int i;
-	for (i = 0; i < listeLaenge(l); i++) {
+	return status;
 
-		switch (childpid[i] = fork()) {
-		case -1:
-			perror("fork-Fehler");
-			exit(1);
-		case 0:
-			do_execvp(einfach->u.einfach.wortanzahl, einfach->u.einfach.worte);
-			break;
-		default:
-			l = listeRest(l);
-			einfach = (Kommando) listeKopf(l);
-			waitpid(childpid[i], status + i, WNOHANG | WUNTRACED | WCONTINUED);
-			prozesse = prozessAnfuegen(childpid[i], getpgid(childpid[i]),
-					status[i], einfach->u.einfach.worte[0], prozesse);
-			/* hier ein if exit(1) und abbruch aller prozesse falls true */
-		}
-	}
-
-	return 0;
 }
 
 int umlenkungen(Kommando k) {
@@ -241,19 +218,25 @@ int umlenkungen(Kommando k) {
 
 		switch (umlenkung.modus) {
 		case READ:
-			if ((file = open(umlenkung.pfad, O_RDONLY)) == -1)
-				abbruch("Fehler READ %s\n", umlenkung.pfad);
+			if ((file = open(umlenkung.pfad, O_RDONLY)) == -1) {
+			 	//fputs("No such file or directory!", stderr);
+			 	//fprintf(stderr, "\nFehler beim öffnen der Datei: %s", umlenkung.pfad);
+			 	//exit(1);
+
+			 	abbruch2("No such file or directory\nFehler beim öffnen der Datei: %s", umlenkung.pfad);
+			}
+
 			break;
 		case WRITE:
 			if ((file = open(umlenkung.pfad, O_RDWR | O_TRUNC | O_CREAT, 0644))
 					== -1)
-				abbruch("Fehler WRITE, Status = %d %s\n", errno,
+				abbruch("Fehler WRITE, Status = %d %s", errno,
 						umlenkung.pfad);
 			break;
 		case APPEND:
 			if ((file = open(umlenkung.pfad, O_RDWR | O_APPEND | O_CREAT, 0644))
 					== -1)
-				abbruch("Fehler APPEND %s\n", umlenkung.pfad);
+				abbruch2("Permission denied\nFehler beim öffnen der Datei: %s", umlenkung.pfad);
 			break;
 		}
 
@@ -460,16 +443,27 @@ int interpretiere(Kommando k, int forkexec) {
 		return interpretiere_pipeline(k);
 	}
 	case K_UND: {
-		fputs("Bearbeitung von K_UND noch nicht implementiert", stderr);
-		return interpretiere_und(k);
+		Liste l = k->u.sequenz.liste;
+		while (!listeIstleer(l)) {
+			status = interpretiere((Kommando) listeKopf(l), forkexec);
+			l = listeRest(l);
+			if(WIFEXITED(status))
+				if(WEXITSTATUS(status)==0)break;
+		}
+		return status;
 	}
 	case K_ODER: {
-		fputs("Bearbeitung von K_ODER noch nicht implementiert", stderr);
-		break;
+		Liste l = k->u.sequenz.liste;
+		while (!listeIstleer(l)) {
+			status = interpretiere((Kommando) listeKopf(l), forkexec);
+			l = listeRest(l);
+			if(WIFEXITED(status))
+				if(WEXITSTATUS(status)!=0)break;
+		}
+		return status;
 	}
 	case K_IFTHENELSE: {
-		fputs("Bearbeitung von K_IFTHENELSE noch nicht implementiert", stderr);
-		break;
+		return interpretiere_ifthenelse(k, forkexec);
 	}
 	default:
 		fputs("unbekannter Kommandotyp, Bearbeitung nicht implementiert\n",

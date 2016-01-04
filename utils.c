@@ -22,6 +22,16 @@ void abbruch(char *fmt, ...) {
   exit(1);
 }
 
+void abbruch2(char *fmt, ...) {
+  va_list ap;
+
+  va_start(ap, fmt);
+  vfprintf(stderr, fmt, ap);
+  printf("\n");
+  va_end(ap);
+  exit(1);
+}
+
 void *reserviere(unsigned size) {
   void *p;
 
