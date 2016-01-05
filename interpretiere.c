@@ -29,106 +29,6 @@ void do_execvp(int argc, char **args) {
 	exit(1);
 }
 
-/* pipelining beliebig vieler childs */
-
-//int interpretiere_pipelineRek(Liste l, int pipefd[2], pid_t cpid) {
-//	pid_t childpid;
-//	int status;
-//	int pipefd2[2];
-//	Kommando einfach = (Kommando) listeKopf(l);
-//
-//	/* letztes child bekommt nur den output des vorherigen childs,
-//	 * sein eigener output bleibt auf standart
-//	 * Abbruchbedingung der Rekursion
-//	 * */
-//	if (listeLaenge(l) == 1) {
-//		switch (childpid = fork()) {
-//		case -1:
-//			perror("fork-Fehler");
-//			exit(1);
-//		case 0:
-//			close(pipefd[1]);
-//			dup2(pipefd[0], STDIN_FILENO);
-//			return interpretiere(einfach, 0);
-//		default:
-//			if ((setpgid(childpid, cpid)) == -1) {
-//				perror("setpgid-Fehler im letzten Prozess");
-//			}
-//			prozesse = prozessAnfuegen(childpid, getpgid(childpid), status,
-//					einfach->u.einfach.worte[0], prozesse);
-//			waitpid(childpid, &status, WUNTRACED);
-//			close(pipefd[0]);
-//			return 0;
-//		}
-//
-//		/* Alle mittleren Childs bekommen input vom vorherigen child ihr output geht ins nächste child */
-//	} else {
-//		pipe(pipefd2);
-//
-//		switch (childpid = fork()) {
-//		case -1:
-//			perror("fork-Fehler");
-//			exit(1);
-//		case 0:
-//			close(pipefd[1]);
-//			close(pipefd2[0]);
-//			dup2(pipefd[0], STDIN_FILENO);
-//			dup2(pipefd2[1], STDOUT_FILENO);
-//			return interpretiere(einfach, 0);
-//		default:
-//			if ((setpgid(childpid, cpid)) == -1) {
-//				perror("setpgid-Fehler im mittleren Prozess");
-//			}
-//			prozesse = prozessAnfuegen(childpid, getpgid(childpid), status,
-//					einfach->u.einfach.worte[0], prozesse);
-//			waitpid(childpid, &status, WUNTRACED);
-//			close(pipefd2[1]);
-//			return interpretiere_pipelineRek(listeRest(l), pipefd2, cpid);
-//		}
-//	}
-//
-//	return 0;
-//
-//}
-//
-///* Einstieg der Prozesskette *//* ls -l | grep david | grep shell.c > david.txt */
-//
-//int interpretiere_pipeline(Kommando k) {
-//
-//	pid_t childpid;
-//	int status;
-//	int pipefd[2];
-//	Liste l = k->u.sequenz.liste;
-//	Kommando einfach = (Kommando) listeKopf(l);
-//
-//	/* ersters child behält sein standartinput, standartouput geht ins nächste child */
-//
-//	pipe(pipefd);
-//	switch (childpid = fork()) {
-//	case -1:
-//		perror("fork-Fehler");
-//		exit(1);
-//	case 0:
-//		close(pipefd[0]);
-//		dup2(pipefd[1], STDOUT_FILENO);
-//		return interpretiere(einfach, 0);
-//	default:
-//		if ((setpgid(childpid, childpid)) == -1) {
-//			perror("setpgid-Fehler im ersten Prozess");
-//		}
-//		prozesse = prozessAnfuegen(childpid, getpgid(childpid), status,
-//				einfach->u.einfach.worte[0], prozesse);
-//		waitpid(childpid, &status, WUNTRACED);
-//		close(pipefd[1]);
-//	}
-//
-//	return interpretiere_pipelineRek(listeRest(l), pipefd, childpid);
-//}
-
-
-
-/* Pipeline Iterativ, lahm und eckelig */
-
 int interpretiere_pipeline(Kommando k) {
 	Liste l = k->u.sequenz.liste;
 	pid_t childpid[listeLaenge(l)];
@@ -467,7 +367,10 @@ int interpretiere(Kommando k, int forkexec) {
 		return status;
 	}
 	case K_IFTHENELSE: {
+		printf("bin drin O.O");
 		return interpretiere_ifthenelse(k, forkexec);
+
+
 	}
 	default:
 		fputs("unbekannter Kommandotyp, Bearbeitung nicht implementiert\n",
