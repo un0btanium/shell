@@ -78,6 +78,7 @@ void kommandoLoeschen (Kommando k ) {
   case K_SEQUENZ:
   case K_UND:
   case K_ODER:
+  case K_IFTHENELSE:
     {
       Liste l = k->u.sequenz.liste;
 
