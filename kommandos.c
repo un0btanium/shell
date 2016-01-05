@@ -77,7 +77,6 @@ void kommandoLoeschen (Kommando k ) {
   case K_PIPE:
   case K_SEQUENZ:
   case K_UND:
-  case K_IFTHENELSE:
   case K_ODER:
   case K_IFTHENELSE:
     {
