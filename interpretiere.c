@@ -196,11 +196,18 @@ int interpretiere_pipeline(Kommando k) {
 }
 
 int interpretiere_ifthenelse(Kommando k, int forkexec){
-	int status;
 	Liste l = k->u.sequenz.liste;
 
-	return status;
-
+	if (interpretiere_einfach((Kommando) listeKopf(l), forkexec) == 0) {
+		l = listeRest(l);
+		return interpretiere_einfach((Kommando) listeKopf(l), forkexec);
+	} else {
+		l = listeRest(l);
+		l = listeRest(l);
+		if (l == NULL) // no if-else
+			return 0;
+		return interpretiere_einfach((Kommando) listeKopf(l), forkexec);
+	}
 }
 
 int umlenkungen(Kommando k) {
