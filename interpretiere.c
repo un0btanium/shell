@@ -266,7 +266,8 @@ int aufruf(Kommando k, int forkexec) {
 			prozesse = prozessAnfuegen(pid, getpgid(pid), status, prog,
 					prozesse);
 			if (k->endeabwarten) { /* Prozess im Vordergrund */
-				waitpid(pid, &status, 0); /* STRG+Z ?? signalbehandlung?? */
+				tcsetpgrp(STDIN_FILENO, pid);
+				//waitpid(pid, &status, 0); /* STRG+Z ?? signalbehandlung?? */
 				//printf("%d ", status);
 			}
 			return status;

@@ -36,7 +36,6 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-
 #include "utils.h"
 #include "listen.h"
 #include "wortspeicher.h"
@@ -58,12 +57,13 @@ void endesubprozess (int sig){
 	if(sig == SIGINT){
 
 		printf("Shell-Hauptprozess kann mit 'exit' beendet werden");
+
 	} else {
 		pid = waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED);
-		while(pid){
+
 			kill(pid , sig);
-			pid = waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED);
-		}
+			tcsetpgrp(STDIN_FILENO, shellpid);
+
 	}
 
 
