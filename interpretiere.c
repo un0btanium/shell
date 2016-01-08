@@ -104,7 +104,7 @@ int interpretiere_ifthenelse(Kommando k, int forkexec){
 	} else {
 		l = listeRest(l);
 		l = listeRest(l);
-		if (l == NULL) // no if-else
+		if (l == NULL) /* no if-else */
 			return 0;
 		return interpretiere((Kommando) listeKopf(l), forkexec);
 	}
@@ -266,8 +266,8 @@ int aufruf(Kommando k, int forkexec) {
 			prozesse = prozessAnfuegen(pid, getpgid(pid), status, prog,
 					prozesse);
 			if (k->endeabwarten) { /* Prozess im Vordergrund */
-				tcsetpgrp(STDIN_FILENO, pid);
-				//waitpid(pid, &status, 0); /* STRG+Z ?? signalbehandlung?? */
+				//tcsetpgrp(STDIN_FILENO, getpgid(pid));
+				waitpid(pid, &status, WUNTRACED); /* STRG+Z ?? signalbehandlung?? */
 				//printf("%d ", status);
 			}
 			return status;

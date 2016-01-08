@@ -14,6 +14,7 @@
 
 
 EXTERNCPP void abbruch(char *fmt, ...);
+EXTERNCPP void abbruch2(char *fmt, ...);
 EXTERNCPP void *reserviere(unsigned size);
 EXTERNCPP void freigabe(void *p);
 

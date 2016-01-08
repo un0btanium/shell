@@ -152,6 +152,8 @@ void kommandoZeigen1 ( Kommando k, int ebene ) {
       case K_ODER:
 	fprintf(stderr, "<ODER-Verkettung>%c \n", k->endeabwarten ? ' ' : '&');
 	break;
+      default:
+    	  abbruch("Fehler bei Kommando Zeigen");
       }
       /* Bestandteile anzeigen */
       {

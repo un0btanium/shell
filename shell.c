@@ -51,33 +51,34 @@ extern int interpretiere(Kommando k, int forkexec);
 int shellpid;
 
 void endesubprozess (int sig){
-	int pid;
-	int status;
+
 
 	if(sig == SIGINT){
-
 		printf("Shell-Hauptprozess kann mit 'exit' beendet werden");
 
-	} else {
-		pid = waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED);
+	}
 
-			kill(pid , sig);
+	if (sig == SIGCHLD) {
+
+			while(waitpid(-1, 0, WNOHANG | WUNTRACED | WCONTINUED) > 0) {}
 			tcsetpgrp(STDIN_FILENO, shellpid);
 
 	}
 
-
 }
 
 void init_signalbehandlung(){
-	struct sigaction neu_sig, alt_sig;
+	struct sigaction sa;
 		signal(SIGTSTP, endesubprozess);
 		signal(SIGINT, endesubprozess);
 		signal(SIGCHLD, endesubprozess);
-		neu_sig.sa_handler = endesubprozess;
-		sigemptyset(&neu_sig.sa_mask);
-		neu_sig.sa_flags = SA_RESTART;
-		if (sigaction (SIGCHLD, &neu_sig, &alt_sig) < 0)
+		signal(SIGTTIN,endesubprozess);
+		signal(SIGTTOU,SIG_IGN);
+		signal(SIGQUIT, SIG_IGN);
+		sa.sa_handler = endesubprozess;
+		sigemptyset(&sa.sa_mask);
+		sa.sa_flags = SA_RESTART | SA_NOCLDSTOP | SA_NOCLDWAIT;
+		if (sigaction (SIGCHLD, &sa, NULL) < 0)
 		      exit (1);
 
 }
