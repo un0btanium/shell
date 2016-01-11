@@ -47,11 +47,12 @@
 extern int yydebug;
 extern int yyparse(void);
 extern int interpretiere(Kommando k, int forkexec);
+extern void setStatus(int pid, int status);
 
 int shellpid;
 
 void endesubprozess (int sig){
-
+	int status, pid;
 
 
 	if(sig == SIGINT){
@@ -62,11 +63,11 @@ void endesubprozess (int sig){
 
 	if (sig == SIGCHLD) {
 			tcsetpgrp(STDIN_FILENO, shellpid);
-			while(waitpid(-1, 0, WNOHANG) > 0) {
-				printf("bin noch drin\n");
-				// eigene Prozesstabelle aktualisieren
-			}
-
+			do {
+				pid = waitpid(-1, &status, WNOHANG);
+				if (pid > 0)
+					setStatus(pid, status);
+			} while (pid > 0);
 	}
 
 }

@@ -87,8 +87,8 @@ int interpretiere_pipeline(Kommando k) {
 			}
 
 			if (k->endeabwarten) { /* Prozess im Vordergrund */
-							tcsetpgrp(STDIN_FILENO, childpid[0]);
-						}
+				tcsetpgrp(STDIN_FILENO, childpid[0]);
+			}
 			prozesse = prozessAnfuegen(childpid[count], getpgid(childpid[count]), -1, einfach->u.einfach.worte[0], prozesse);
 			l = listeRest(l);
 			if (!listeIstleer(l))
@@ -172,6 +172,16 @@ int umlenkungen(Kommando k) {
 	return 0;
 }
 
+
+void setStatus(int pid, int status) {
+	ProzessListe aktuellerListenEintrag;
+	for (aktuellerListenEintrag = prozesse; aktuellerListenEintrag != NULL; aktuellerListenEintrag = aktuellerListenEintrag->naechster) {
+		if (aktuellerListenEintrag->prozess->pid == pid) {
+			aktuellerListenEintrag->prozess->status = status;
+		}
+	}
+}
+
 int status() {
 	ProzessListe aktuellerListenEintrag;
 	ProzessListe vorherigerListenEintrag;
@@ -192,22 +202,23 @@ int status() {
 
 		int pid = aktuellerListenEintrag->prozess->pid;
 		int pid_t = waitpid(pid, &status, WNOHANG | WUNTRACED | WCONTINUED);
-		if (pid_t == 0)
-			status = -1; /* running */
-		aktuellerListenEintrag->prozess->status = status;
+		if (pid_t == 0) // running
+			aktuellerListenEintrag->prozess->status = -1;
+		else if (pid_t > 0)
+			aktuellerListenEintrag->prozess->status = status;
 	}
 
 	/* Status Output */
-	printf("NUM	PID		PGID	STATUS			PROG\n\n");
+	printf("NUM	PID		PGID	STATUS			PROG\n---------------------------------------------------------------------\n");
 	for (i = 1, aktuellerListenEintrag = prozesse;
 			aktuellerListenEintrag != NULL; i++, aktuellerListenEintrag =
 					aktuellerListenEintrag->naechster) {
 
 		char status_string[50] = "";
 		status = aktuellerListenEintrag->prozess->status;
-		if (status == -1) /* running */
+		if (status == -1) {
 			strcat(status_string, "running");
-		else if (WIFEXITED(status)) { /* process terminated normally */
+		} else if (WIFEXITED(status)) { /* process terminated normally */
 			sprintf(status_string, "exit(%d)", WEXITSTATUS(status));
 		} else if (WIFSIGNALED(status)) { /* process was terminated by a signal */
 			sprintf(status_string, "signal(%d)", WTERMSIG(status));
@@ -216,7 +227,7 @@ int status() {
 		} else if (WIFCONTINUED(status)) /* process was resumed by delivery of SIGCONT */
 			strcat(status_string, "continued");
 		else {
-			strcat(status_string, "unknown");
+			strcat(status_string, "unknown status");
 		}
 
 		printf("%d	%d		%d	%s			%s\n", i, aktuellerListenEintrag->prozess->pid,
