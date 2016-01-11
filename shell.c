@@ -54,7 +54,6 @@ int shellpid;
 void endesubprozess (int sig){
 	int status, pid;
 
-
 	if(sig == SIGINT){
 
 			printf("Shell-Hauptprozess kann mit 'exit' beendet werden");

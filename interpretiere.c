@@ -175,8 +175,18 @@ int umlenkungen(Kommando k) {
 
 void setStatus(int pid, int status) {
 	ProzessListe aktuellerListenEintrag;
+	int pgid = -1;
+	// find process group id
 	for (aktuellerListenEintrag = prozesse; aktuellerListenEintrag != NULL; aktuellerListenEintrag = aktuellerListenEintrag->naechster) {
 		if (aktuellerListenEintrag->prozess->pid == pid) {
+			pgid = aktuellerListenEintrag->prozess->pgid;
+			break;
+		}
+	}
+
+	// set status for all process with the same pgid
+	for (aktuellerListenEintrag = prozesse; aktuellerListenEintrag != NULL; aktuellerListenEintrag = aktuellerListenEintrag->naechster) {
+		if (aktuellerListenEintrag->prozess->pgid == pgid) {
 			aktuellerListenEintrag->prozess->status = status;
 		}
 	}
