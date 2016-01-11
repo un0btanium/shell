@@ -56,6 +56,11 @@ int interpretiere_pipeline(Kommando k) {
 			exit(1);
 
 		case 0:
+
+			setpgid(0, childpid[0]);
+				if (k->endeabwarten) {
+					tcsetpgrp(STDIN_FILENO, childpid[0]);
+				}
 			/* if not first command */
 			if (count != 0) {
 				if (dup2(pipefd[(count*2) - 2], STDIN_FILENO) < 0) {
@@ -80,6 +85,10 @@ int interpretiere_pipeline(Kommando k) {
 			if ((setpgid(childpid[count], childpid[0])) == -1) {
 				perror("setpgid-Fehler");
 			}
+
+			if (k->endeabwarten) { /* Prozess im Vordergrund */
+							tcsetpgrp(STDIN_FILENO, childpid[0]);
+						}
 			prozesse = prozessAnfuegen(childpid[count], getpgid(childpid[count]), -1, einfach->u.einfach.worte[0], prozesse);
 			l = listeRest(l);
 			if (!listeIstleer(l))
