@@ -54,14 +54,15 @@ void endesubprozess (int sig){
 
 
 	if(sig == SIGINT){
-		printf("Shell-Hauptprozess kann mit 'exit' beendet werden");
-
+		if (tcgetpgrp(STDIN_FILENO) == shellpid)
+			printf("Shell-Hauptprozess kann mit 'exit' beendet werden");
+		else
+			tcsetpgrp(STDIN_FILENO, shellpid);
 	}
 
 	if (sig == SIGCHLD) {
 
 			while(waitpid(-1, 0, WNOHANG | WUNTRACED | WCONTINUED) > 0) {}
-			tcsetpgrp(STDIN_FILENO, shellpid);
 
 	}
 
@@ -71,7 +72,7 @@ void init_signalbehandlung(){
 	struct sigaction sa;
 		signal(SIGTSTP, endesubprozess);
 		signal(SIGINT, endesubprozess);
-		signal(SIGCHLD, endesubprozess);
+		//signal(SIGCHLD, endesubprozess);
 		signal(SIGTTIN,endesubprozess);
 		signal(SIGTTOU,SIG_IGN);
 		signal(SIGQUIT, SIG_IGN);

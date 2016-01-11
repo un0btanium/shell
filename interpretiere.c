@@ -217,7 +217,8 @@ int status() {
 	/* Delete stopped processes */
 	vorherigerListenEintrag = NULL;
 	vorherigerProzess = NULL;
-	for (aktuellerListenEintrag = prozesse; aktuellerListenEintrag != NULL; NULL) {
+	aktuellerListenEintrag = prozesse;
+	while (aktuellerListenEintrag != NULL) {
 
 		status = aktuellerListenEintrag->prozess->status;
 		if (status != -1 && !WIFSTOPPED(status) && !WIFCONTINUED(status)) { /* not running anymore */
@@ -266,8 +267,8 @@ int aufruf(Kommando k, int forkexec) {
 			prozesse = prozessAnfuegen(pid, getpgid(pid), status, prog,
 					prozesse);
 			if (k->endeabwarten) { /* Prozess im Vordergrund */
-				//tcsetpgrp(STDIN_FILENO, getpgid(pid));
-				waitpid(pid, &status, WUNTRACED); /* STRG+Z ?? signalbehandlung?? */
+				tcsetpgrp(STDIN_FILENO, getpgid(pid));
+				waitpid(pid, &status, WNOHANG | WUNTRACED | WCONTINUED);
 				//printf("%d ", status);
 			}
 			return status;
