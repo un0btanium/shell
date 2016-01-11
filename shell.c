@@ -61,12 +61,12 @@ void endesubprozess (int sig){
 	}
 
 	if (sig == SIGCHLD) {
-
+			tcsetpgrp(STDIN_FILENO, shellpid);
 			while(waitpid(-1, 0, WNOHANG) > 0) {
 				printf("bin noch drin\n");
 				// eigene Prozesstabelle aktualisieren
 			}
-			tcsetpgrp(STDIN_FILENO, shellpid);
+
 	}
 
 }
@@ -75,7 +75,7 @@ void init_signalbehandlung(){
 	struct sigaction sa, sa_ign;
 	sa.sa_handler = endesubprozess;
 	sa_ign.sa_handler = SIG_IGN;
-	sa.sa_flags = SA_RESTART, SA_NOCLDSTOP;
+	sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
 
 	sigemptyset(&sa.sa_mask);
 	sigemptyset(&sa_ign.sa_mask);
@@ -96,6 +96,7 @@ void init_signalbehandlung(){
 
 int main(int argc, char *argv[]){
 
+	shellpid = getpid();
 	  int  zeigen=0, ausfuehren=1;
 	  int status, i;
 
@@ -103,7 +104,7 @@ int main(int argc, char *argv[]){
 		  	 fputs("couldnt find home-directory in main", stderr);
 
 
-  //init_signalbehandlung();
+  init_signalbehandlung();
 
   yydebug=0;
 
@@ -121,6 +122,7 @@ int main(int argc, char *argv[]){
   }
 
   wsp=wortspeicherNeu();
+  //setshellpid(shellpid);
 
   while(1){
     int res;

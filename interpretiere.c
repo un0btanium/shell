@@ -17,10 +17,14 @@
 #include "errno.h"
 
 extern int errno;
-
+int shellpid;
 ProzessListe prozesse;
 
 int interpretiere(Kommando k, int forkexec);
+
+void setshellpid(int pid){
+	shellpid = pid;
+}
 
 void do_execvp(int argc, char **args) {
 	execvp(*args, args);
@@ -257,10 +261,10 @@ int aufruf(Kommando k, int forkexec) {
 			perror("Fehler bei fork");
 			return (-1);
 		case 0:
-//			setpgid(0, 0);
-//			if (k->endeabwarten) {
-//				tcsetpgrp(STDIN_FILENO, getpgid(pid));
-//			}
+			setpgid(0, 0);
+			if (k->endeabwarten) {
+				tcsetpgrp(STDIN_FILENO, getpgid(pid));
+			}
 			if (umlenkungen(k))
 				exit(1);
 			do_execvp(k->u.einfach.wortanzahl, k->u.einfach.worte);
@@ -373,10 +377,7 @@ int interpretiere(Kommando k, int forkexec) {
 		return status;
 	}
 	case K_IFTHENELSE: {
-		printf("bin drin O.O");
 		return interpretiere_ifthenelse(k, forkexec);
-
-
 	}
 	default:
 		fputs("unbekannter Kommandotyp, Bearbeitung nicht implementiert\n",
