@@ -53,26 +53,33 @@ int shellpid;
 void endesubprozess (int sig){
 
 
+
 	if(sig == SIGINT){
-		if (tcgetpgrp(STDIN_FILENO) == shellpid)
+
 			printf("Shell-Hauptprozess kann mit 'exit' beendet werden");
-		else
-			tcsetpgrp(STDIN_FILENO, shellpid);
+
 	}
 
 	if (sig == SIGCHLD) {
 
-			while(waitpid(-1, 0, WNOHANG | WUNTRACED | WCONTINUED) > 0) {}
-
+			while(waitpid(-1, 0, WNOHANG) > 0) {
+				printf("bin noch drin\n");
+				// eigene Prozesstabelle aktualisieren
+			}
+			tcsetpgrp(STDIN_FILENO, shellpid);
 	}
 
 }
 
 void init_signalbehandlung(){
-	struct sigaction sa;
+	struct sigaction sa, sa_ign;
 	sa.sa_handler = endesubprozess;
+	sa_ign.sa_handler = SIG_IGN;
+	sa.sa_flags = SA_RESTART, SA_NOCLDSTOP;
+
 	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_RESTART;
+	sigemptyset(&sa_ign.sa_mask);
+
 	if (sigaction (SIGCHLD, &sa, NULL) < 0)
 			  exit (1);
 	if (sigaction (SIGTSTP, &sa, NULL) < 0)
@@ -81,9 +88,9 @@ void init_signalbehandlung(){
 			  exit (1);
 	if (sigaction (SIGTTIN, &sa, NULL) < 0)
 			  exit (1);
-	if (sigaction (SIGTTOU, &sa, NULL) < 0)
+	if (sigaction (SIGTTOU, &sa_ign, NULL) < 0)
 			  exit (1);
-	if (sigaction (SIGQUIT, &sa, NULL) < 0)
+	if (sigaction (SIGQUIT, &sa_ign, NULL) < 0)
 			  exit (1);
 }
 
@@ -96,7 +103,7 @@ int main(int argc, char *argv[]){
 		  	 fputs("couldnt find home-directory in main", stderr);
 
 
-  init_signalbehandlung();
+  //init_signalbehandlung();
 
   yydebug=0;
 

@@ -257,6 +257,10 @@ int aufruf(Kommando k, int forkexec) {
 			perror("Fehler bei fork");
 			return (-1);
 		case 0:
+//			setpgid(0, 0);
+//			if (k->endeabwarten) {
+//				tcsetpgrp(STDIN_FILENO, getpgid(pid));
+//			}
 			if (umlenkungen(k))
 				exit(1);
 			do_execvp(k->u.einfach.wortanzahl, k->u.einfach.worte);
@@ -268,7 +272,7 @@ int aufruf(Kommando k, int forkexec) {
 					prozesse);
 			if (k->endeabwarten) { /* Prozess im Vordergrund */
 				tcsetpgrp(STDIN_FILENO, getpgid(pid));
-				waitpid(pid, &status, WNOHANG);
+				waitpid(pid, &status, 0);
 				//printf("%d ", status);
 			}
 			return status;
