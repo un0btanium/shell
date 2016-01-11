@@ -70,18 +70,21 @@ void endesubprozess (int sig){
 
 void init_signalbehandlung(){
 	struct sigaction sa;
-		signal(SIGTSTP, endesubprozess);
-		signal(SIGINT, endesubprozess);
-		//signal(SIGCHLD, endesubprozess);
-		signal(SIGTTIN,endesubprozess);
-		signal(SIGTTOU,SIG_IGN);
-		signal(SIGQUIT, SIG_IGN);
-		sa.sa_handler = endesubprozess;
-		sigemptyset(&sa.sa_mask);
-		sa.sa_flags = SA_RESTART;
-		if (sigaction (SIGCHLD, &sa, NULL) < 0)
-		      exit (1);
-
+	sa.sa_handler = endesubprozess;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_RESTART;
+	if (sigaction (SIGCHLD, &sa, NULL) < 0)
+			  exit (1);
+	if (sigaction (SIGTSTP, &sa, NULL) < 0)
+			  exit (1);
+	if (sigaction (SIGINT, &sa, NULL) < 0)
+			  exit (1);
+	if (sigaction (SIGTTIN, &sa, NULL) < 0)
+			  exit (1);
+	if (sigaction (SIGTTOU, &sa, NULL) < 0)
+			  exit (1);
+	if (sigaction (SIGQUIT, &sa, NULL) < 0)
+			  exit (1);
 }
 
 int main(int argc, char *argv[]){
