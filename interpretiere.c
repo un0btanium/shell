@@ -306,7 +306,7 @@ int aufruf(Kommando k, int forkexec) {
 					prozesse);
 			if (k->endeabwarten) { /* Prozess im Vordergrund */
 				tcsetpgrp(STDIN_FILENO, getpgid(pid));
-				waitpid(pid, &status, 0);
+				waitpid(pid, &status, WUNTRACED);
 				//printf("%d ", status);
 			}
 			return status;
@@ -363,6 +363,29 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 		}
 		return -1;
 	}
+
+	// fg
+	if (strcmp(worte[0], "fg") == 0) {
+		if (anzahl != 2) {
+			fputs("Aufruf: fg [ pgid ]", stderr);
+			return -1;
+		}
+		kill(atoi(worte[1]), SIGCONT);
+		tcsetpgrp(STDIN_FILENO, atoi(worte[1]));
+		waitpid(atoi(worte[1]), NULL, WUNTRACED);
+		return 0;
+	}
+
+	// bg
+	if (strcmp(worte[0], "bg") == 0) {
+		if (anzahl != 2) {
+			fputs("Aufruf: bg [ pgid ]", stderr);
+			return -1;
+		}
+		kill(atoi(worte[1]), SIGCONT);
+		return 0;
+	}
+
 
 	/* PROGRAM CALL */
 	return aufruf(k, forkexec);
