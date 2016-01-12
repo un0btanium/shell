@@ -58,16 +58,6 @@ void endesubprozess(int sig) {
 		printf("Shell-Hauptprozess kann mit 'exit' beendet werden");
 	}
 
-	if (sig == SIGTSTP) { /* process stopped/paused */
-		printf("SIGTSTP reveived\n");
-		tcsetpgrp(STDIN_FILENO, shellpid);
-		do {
-			pid = waitpid(-1, &status, WNOHANG);
-			if (pid > 0)
-				setStatus(pid, status);
-		} while (pid > 0);
-	}
-
 	if (sig == SIGCHLD) { /* process terminated */
 		printf("SIGCHLD reveived\n");
 		tcsetpgrp(STDIN_FILENO, shellpid);

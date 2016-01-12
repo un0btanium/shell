@@ -325,6 +325,7 @@ int aufruf(Kommando k, int forkexec) {
 
 int interpretiere_einfach(Kommando k, int forkexec) {
 
+	int statuss;
 	char **worte = k->u.einfach.worte;
 	int anzahl = k->u.einfach.wortanzahl;
 
@@ -374,7 +375,9 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 		}
 		kill(atoi(worte[1]), SIGCONT);
 		tcsetpgrp(STDIN_FILENO, atoi(worte[1]));
-		waitpid(atoi(worte[1]), NULL, WUNTRACED);
+		waitpid(atoi(worte[1]), &statuss, WUNTRACED);
+		setStatus(atoi(worte[1]), statuss);
+		tcsetpgrp(STDIN_FILENO, shellpid);
 		return 0;
 	}
 
