@@ -62,11 +62,16 @@ void endesubprozess (int sig){
 
 	if (sig == SIGCHLD) {
 			tcsetpgrp(STDIN_FILENO, shellpid);
-			do {
-				pid = waitpid(-1, &status, WNOHANG);
-				if (pid > 0)
-					setStatus(pid, status);
-			} while (pid > 0);
+//			cat | cat | cat | cat | cat | cat | cat | cat | cat
+//			do {
+//				pid = waitpid(-1, &status, WNOHANG);
+//				if (pid > 0)
+//					setStatus(pid, status);
+//			} while (pid > 0);
+
+			while((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) >= 0){
+				//setStatus(pid, status);
+			}
 	}
 
 }
@@ -89,8 +94,6 @@ void init_signalbehandlung(){
 	if (sigaction (SIGTTIN, &sa, NULL) < 0)
 			  exit (1);
 	if (sigaction (SIGTTOU, &sa_ign, NULL) < 0)
-			  exit (1);
-	if (sigaction (SIGQUIT, &sa_ign, NULL) < 0)
 			  exit (1);
 }
 

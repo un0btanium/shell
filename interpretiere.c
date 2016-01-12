@@ -21,6 +21,7 @@ int shellpid;
 ProzessListe prozesse;
 
 int interpretiere(Kommando k, int forkexec);
+void setStatus(int pid, int status);
 
 void setshellpid(int pid){
 	shellpid = pid;
@@ -103,7 +104,10 @@ int interpretiere_pipeline(Kommando k) {
 
 	for (i = 0; i < numbOfPip + 1; i++) {
 		waitpid(childpid[i], &status, WUNTRACED);
+			setStatus(childpid[i], status);
 	}
+
+	tcsetpgrp(STDIN_FILENO, shellpid);
 
 	return 1;
 }
@@ -174,26 +178,20 @@ int umlenkungen(Kommando k) {
 
 
 void setStatus(int pid, int status) {
-	ProzessListe aktuellerListenEintrag;
-	int pgid = -1;
-	// find process group id
-	for (aktuellerListenEintrag = prozesse; aktuellerListenEintrag != NULL; aktuellerListenEintrag = aktuellerListenEintrag->naechster) {
+	ProzessListe aktuellerListenEintrag = prozesse;
+
+	while(aktuellerListenEintrag != NULL) {
 		if (aktuellerListenEintrag->prozess->pid == pid) {
-			pgid = aktuellerListenEintrag->prozess->pgid;
+			aktuellerListenEintrag->prozess->status = status;
 			break;
 		}
-	}
 
-	// set status for all process with the same pgid
-	for (aktuellerListenEintrag = prozesse; aktuellerListenEintrag != NULL; aktuellerListenEintrag = aktuellerListenEintrag->naechster) {
-		if (aktuellerListenEintrag->prozess->pgid == pgid) {
-			aktuellerListenEintrag->prozess->status = status;
-		}
+		aktuellerListenEintrag = aktuellerListenEintrag->naechster;
 	}
 }
 
 int status() {
-	ProzessListe aktuellerListenEintrag;
+	ProzessListe aktuellerListenEintrag = prozesse;
 	ProzessListe vorherigerListenEintrag;
 	Prozess aktuellerProzess;
 	Prozess vorherigerProzess;
@@ -207,16 +205,17 @@ int status() {
 	}
 
 	/* Status Update */
-	for (aktuellerListenEintrag = prozesse; aktuellerListenEintrag != NULL;
-			aktuellerListenEintrag = aktuellerListenEintrag->naechster) {
 
-		int pid = aktuellerListenEintrag->prozess->pid;
-		int pid_t = waitpid(pid, &status, WNOHANG | WUNTRACED | WCONTINUED);
-		if (pid_t == 0) // running
-			aktuellerListenEintrag->prozess->status = -1;
-		else if (pid_t > 0)
-			aktuellerListenEintrag->prozess->status = status;
-	}
+//	for (aktuellerListenEintrag = prozesse; aktuellerListenEintrag != NULL;
+//			aktuellerListenEintrag = aktuellerListenEintrag->naechster) {
+//
+//		int pid = aktuellerListenEintrag->prozess->pid;
+//		int pid_t = waitpid(pid, &status, WNOHANG | WUNTRACED | WCONTINUED);
+//		if (pid_t == 0) // running
+//			aktuellerListenEintrag->prozess->status = -1;
+//		else if (pid_t > 0)
+//			aktuellerListenEintrag->prozess->status = status;
+//	}
 
 	/* Status Output */
 	printf("NUM	PID		PGID	STATUS			PROG\n---------------------------------------------------------------------\n");
@@ -306,8 +305,10 @@ int aufruf(Kommando k, int forkexec) {
 					prozesse);
 			if (k->endeabwarten) { /* Prozess im Vordergrund */
 				tcsetpgrp(STDIN_FILENO, getpgid(pid));
-				waitpid(pid, &status, 0);
-				//printf("%d ", status);
+
+				waitpid(pid, &status, WUNTRACED);
+				tcsetpgrp(STDIN_FILENO, shellpid);
+				setStatus(pid, status);
 			}
 			return status;
 		}
