@@ -59,7 +59,6 @@ void endesubprozess(int sig) {
 	}
 
 	if (sig == SIGCHLD) { /* process terminated */
-		printf("SIGCHLD reveived\n");
 		tcsetpgrp(STDIN_FILENO, shellpid);
 		do {
 			pid = waitpid(-1, &status, WNOHANG);
