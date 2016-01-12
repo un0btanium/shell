@@ -310,6 +310,9 @@ int aufruf(Kommando k, int forkexec) {
 				tcsetpgrp(STDIN_FILENO, shellpid);
 				setStatus(pid, status);
 
+			} else {
+				waitpid(pid, &status, WNOHANG | WUNTRACED | WCONTINUED);
+				setStatus(pid, status);
 			}
 			return status;
 		}
@@ -367,27 +370,45 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 		return -1;
 	}
 
-	// fg
+	// FG
 	if (strcmp(worte[0], "fg") == 0) {
+		ProzessListe aktuellerListenEintrag;
 		if (anzahl != 2) {
 			fputs("Aufruf: fg [ pgid ]", stderr);
 			return -1;
 		}
-		kill(atoi(worte[1]), SIGCONT);
+		/* send SIGNCONT singal to all process with pgid */
+		for (aktuellerListenEintrag = prozesse; aktuellerListenEintrag != NULL; aktuellerListenEintrag = aktuellerListenEintrag->naechster) {
+			if (aktuellerListenEintrag->prozess->pgid == atoi(worte[1])) {
+				kill(aktuellerListenEintrag->prozess->pid, SIGCONT);
+			}
+		}
 		tcsetpgrp(STDIN_FILENO, atoi(worte[1]));
-		waitpid(atoi(worte[1]), &statuss, WUNTRACED);
-		setStatus(atoi(worte[1]), statuss);
+		/* wait for all process to be terminated */
+		for (aktuellerListenEintrag = prozesse; aktuellerListenEintrag != NULL; aktuellerListenEintrag = aktuellerListenEintrag->naechster) {
+			if (aktuellerListenEintrag->prozess->pgid == atoi(worte[1])) {
+				waitpid(aktuellerListenEintrag->prozess->pid, &statuss, WUNTRACED);
+				setStatus(aktuellerListenEintrag->prozess->pid, statuss);
+			}
+		}
 		tcsetpgrp(STDIN_FILENO, shellpid);
 		return 0;
 	}
 
-	// bg
+	// BG
 	if (strcmp(worte[0], "bg") == 0) {
+		ProzessListe aktuellerListenEintrag;
 		if (anzahl != 2) {
 			fputs("Aufruf: bg [ pgid ]", stderr);
 			return -1;
 		}
-		kill(atoi(worte[1]), SIGCONT);
+		for (aktuellerListenEintrag = prozesse; aktuellerListenEintrag != NULL; aktuellerListenEintrag = aktuellerListenEintrag->naechster) {
+			if (aktuellerListenEintrag->prozess->pgid == atoi(worte[1])) {
+				kill(aktuellerListenEintrag->prozess->pid, SIGCONT);
+				waitpid(aktuellerListenEintrag->prozess->pid, &statuss, WNOHANG | WUNTRACED | WCONTINUED);
+				setStatus(aktuellerListenEintrag->prozess->pid, statuss);
+			}
+		}
 		return 0;
 	}
 

@@ -59,7 +59,6 @@ void endesubprozess(int sig) {
 	}
 
 	if (sig == SIGCHLD) { /* process terminated */
-		printf("SIGCHLD reveived\n");
 		tcsetpgrp(STDIN_FILENO, shellpid);
 		do {
 			pid = waitpid(-1, &status, WNOHANG);
@@ -72,11 +71,7 @@ void endesubprozess(int sig) {
 }
 
 void init_signalbehandlung() {
-	struct sigaction sa, sa_ign, sa_stop;
-
-	sa_stop.sa_handler = endesubprozess;
-	sa_stop.sa_flags = SA_RESTART;
-	sigemptyset(&sa_stop.sa_mask);
+	struct sigaction sa, sa_ign;
 
 	sa.sa_handler = endesubprozess;
 	sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
@@ -88,7 +83,7 @@ void init_signalbehandlung() {
 
 	if (sigaction(SIGCHLD, &sa, NULL) < 0)
 		exit(1);
-	if (sigaction(SIGTSTP, &sa_stop, NULL) < 0)
+	if (sigaction(SIGTSTP, &sa, NULL) < 0)
 		exit(1);
 	if (sigaction(SIGINT, &sa, NULL) < 0)
 		exit(1);
