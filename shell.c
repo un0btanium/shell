@@ -68,20 +68,6 @@ void endesubprozess(int sig) {
 		} while (pid > 0);
 	}
 
-<<<<<<< HEAD
-	if (sig == SIGCHLD) {
-			tcsetpgrp(STDIN_FILENO, shellpid);
-//			cat | cat | cat | cat | cat | cat | cat | cat | cat
-//			do {
-//				pid = waitpid(-1, &status, WNOHANG);
-//				if (pid > 0)
-//					setStatus(pid, status);
-//			} while (pid > 0);
-
-			while((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) >= 0){
-				//setStatus(pid, status);
-			}
-=======
 	if (sig == SIGCHLD) { /* process terminated */
 		printf("SIGCHLD reveived\n");
 		tcsetpgrp(STDIN_FILENO, shellpid);
@@ -90,7 +76,7 @@ void endesubprozess(int sig) {
 			if (pid > 0)
 				setStatus(pid, status);
 		} while (pid > 0);
->>>>>>> 3d2430bc389ff109d9399c26c2fbf8bc9ac89bcd
+
 	}
 
 }
@@ -109,18 +95,7 @@ void init_signalbehandlung() {
 	sa_ign.sa_handler = SIG_IGN;
 	sigemptyset(&sa_ign.sa_mask);
 
-<<<<<<< HEAD
-	if (sigaction (SIGCHLD, &sa, NULL) < 0)
-			  exit (1);
-	if (sigaction (SIGTSTP, &sa, NULL) < 0)
-			  exit (1);
-	if (sigaction (SIGINT, &sa, NULL) < 0)
-			  exit (1);
-	if (sigaction (SIGTTIN, &sa, NULL) < 0)
-			  exit (1);
-	if (sigaction (SIGTTOU, &sa_ign, NULL) < 0)
-			  exit (1);
-=======
+
 	if (sigaction(SIGCHLD, &sa, NULL) < 0)
 		exit(1);
 	if (sigaction(SIGTSTP, &sa_stop, NULL) < 0)
@@ -133,7 +108,7 @@ void init_signalbehandlung() {
 		exit(1);
 	if (sigaction(SIGQUIT, &sa_ign, NULL) < 0)
 		exit(1);
->>>>>>> 3d2430bc389ff109d9399c26c2fbf8bc9ac89bcd
+
 }
 
 int main(int argc, char *argv[]) {

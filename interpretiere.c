@@ -305,15 +305,11 @@ int aufruf(Kommando k, int forkexec) {
 					prozesse);
 			if (k->endeabwarten) { /* Prozess im Vordergrund */
 				tcsetpgrp(STDIN_FILENO, getpgid(pid));
-<<<<<<< HEAD
 
 				waitpid(pid, &status, WUNTRACED);
 				tcsetpgrp(STDIN_FILENO, shellpid);
 				setStatus(pid, status);
-=======
-				waitpid(pid, &status, WUNTRACED);
-				//printf("%d ", status);
->>>>>>> 3d2430bc389ff109d9399c26c2fbf8bc9ac89bcd
+
 			}
 			return status;
 		}
