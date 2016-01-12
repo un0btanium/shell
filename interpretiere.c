@@ -295,7 +295,6 @@ int aufruf(Kommando k, int forkexec) {
 			/* no break */
 		default:
 			setpgid(pid, pid);
-			waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED);
 			prozesse = prozessAnfuegen(pid, getpgid(pid), status, prog, prozesse);
 			if (k->endeabwarten) { /* Prozess im Vordergrund */
 				tcsetpgrp(STDIN_FILENO, getpgid(pid));
@@ -317,7 +316,7 @@ int aufruf(Kommando k, int forkexec) {
 
 int interpretiere_einfach(Kommando k, int forkexec) {
 
-	int statuss;
+	int statuss = -1;
 	char **worte = k->u.einfach.worte;
 	int anzahl = k->u.einfach.wortanzahl;
 
@@ -397,8 +396,6 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 		for (aktuellerListenEintrag = prozesse; aktuellerListenEintrag != NULL; aktuellerListenEintrag = aktuellerListenEintrag->naechster) {
 			if (aktuellerListenEintrag->prozess->pgid == atoi(worte[1])) {
 				kill(aktuellerListenEintrag->prozess->pid, SIGCONT);
-				waitpid(aktuellerListenEintrag->prozess->pid, &statuss, WNOHANG | WUNTRACED | WCONTINUED); // TODO
-				setStatus(aktuellerListenEintrag->prozess->pid, statuss); // TODO
 			}
 		}
 
