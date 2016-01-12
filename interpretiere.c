@@ -147,25 +147,24 @@ int umlenkungen(Kommando k) {
 			 	//fprintf(stderr, "\nFehler beim öffnen der Datei: %s", umlenkung.pfad);
 			 	//exit(1);
 
-			 	abbruch2("No such file or directory\nFehler beim öffnen der Datei: %s", umlenkung.pfad);
+				abbruch2("%s\nFehler beim lesen der Datei: %s", strerror(errno), umlenkung.pfad);
 			}
 
 			break;
 		case WRITE:
 			if ((file = open(umlenkung.pfad, O_RDWR | O_TRUNC | O_CREAT, 0644))
 					== -1)
-				abbruch("Fehler WRITE, Status = %d %s", errno,
-						umlenkung.pfad);
+				abbruch2("%s\nFehler beim schreiben der Datei: %s", strerror(errno), umlenkung.pfad);
 			break;
 		case APPEND:
 			if ((file = open(umlenkung.pfad, O_RDWR | O_APPEND | O_CREAT, 0644))
 					== -1)
-				abbruch2("Permission denied\nFehler beim öffnen der Datei: %s", umlenkung.pfad);
+				abbruch2("%s\nFehler beim anfügen an Datei: %s", strerror(errno), umlenkung.pfad);
 			break;
 		}
 
 		if (dup2(file, umlenkung.filedeskriptor) == -1)
-			printf("Fehler dup in %s\n", umlenkung.pfad);
+			printf("%s\n", umlenkung.pfad);
 
 		close(file);
 
@@ -311,7 +310,7 @@ int aufruf(Kommando k, int forkexec) {
 				setStatus(pid, status);
 
 			} else {
-				waitpid(pid, &status, WNOHANG | WUNTRACED | WCONTINUED);
+				waitpid(pid, &status, WUNTRACED | WNOHANG | WCONTINUED);
 				setStatus(pid, status);
 			}
 			return status;
@@ -361,7 +360,7 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 			break;
 		case 2:
 			if ((chdir(worte[1])) == -1)
-				fprintf(stderr,"%s: Datei oder Verzeichnis nicht gefunden",worte[1]);
+				fprintf(stderr,"%s : Datei oder Verzeichnis nicht gefunden",worte[1]);
 			return 0;
 			break;
 		default:
@@ -377,6 +376,7 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 			fputs("Aufruf: fg [ pgid ]", stderr);
 			return -1;
 		}
+
 		/* send SIGNCONT singal to all process with pgid */
 		for (aktuellerListenEintrag = prozesse; aktuellerListenEintrag != NULL; aktuellerListenEintrag = aktuellerListenEintrag->naechster) {
 			if (aktuellerListenEintrag->prozess->pgid == atoi(worte[1])) {
@@ -392,6 +392,7 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 			}
 		}
 		tcsetpgrp(STDIN_FILENO, shellpid);
+
 		return 0;
 	}
 
@@ -402,6 +403,7 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 			fputs("Aufruf: bg [ pgid ]", stderr);
 			return -1;
 		}
+
 		for (aktuellerListenEintrag = prozesse; aktuellerListenEintrag != NULL; aktuellerListenEintrag = aktuellerListenEintrag->naechster) {
 			if (aktuellerListenEintrag->prozess->pgid == atoi(worte[1])) {
 				kill(aktuellerListenEintrag->prozess->pid, SIGCONT);
@@ -409,9 +411,9 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 				setStatus(aktuellerListenEintrag->prozess->pid, statuss);
 			}
 		}
+
 		return 0;
 	}
-
 
 	/* PROGRAM CALL */
 	return aufruf(k, forkexec);
