@@ -309,9 +309,11 @@ int aufruf(Kommando k, int forkexec) {
 				waitpid(pid, &status, WUNTRACED);
 				tcsetpgrp(STDIN_FILENO, shellpid);
 				setStatus(pid, status);
+
 			} else {
 				waitpid(pid, &status, WUNTRACED | WNOHANG | WCONTINUED);
 				setStatus(pid, status);
+
 			}
 			return status;
 		}
@@ -326,6 +328,7 @@ int aufruf(Kommando k, int forkexec) {
 }
 
 int interpretiere_einfach(Kommando k, int forkexec) {
+
 	int statuss;
 	char **worte = k->u.einfach.worte;
 	int anzahl = k->u.einfach.wortanzahl;
@@ -368,29 +371,30 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 		return -1;
 	}
 
-	 	// fg
-		if (strcmp(worte[0], "fg") == 0) {
-			if (anzahl != 2) {
-				fputs("Aufruf: fg [ pgid ]", stderr);
-				return -1;
-			}
 
-			kill(atoi(worte[1]), SIGCONT);
-			tcsetpgrp(STDIN_FILENO, atoi(worte[1]));
-			waitpid(atoi(worte[1]), &statuss, WUNTRACED);
-			setStatus(atoi(worte[1]), statuss);
-			return 0;
+	// fg
+	if (strcmp(worte[0], "fg") == 0) {
+		if (anzahl != 2) {
+			fputs("Aufruf: fg [ pgid ]", stderr);
+			return -1;
 		}
+		kill(atoi(worte[1]), SIGCONT);
+		tcsetpgrp(STDIN_FILENO, atoi(worte[1]));
+		waitpid(atoi(worte[1]), &statuss, WUNTRACED);
+		setStatus(atoi(worte[1]), statuss);
+		tcsetpgrp(STDIN_FILENO, shellpid);
+		return 0;
+	}
 
-		// bg
-		if (strcmp(worte[0], "bg") == 0) {
-			if (anzahl != 2) {
-				fputs("Aufruf: bg [ pgid ]", stderr);
-				return -1;
-			}
-			kill(atoi(worte[1]), SIGCONT);
-			return 0;
+	// bg
+	if (strcmp(worte[0], "bg") == 0) {
+		if (anzahl != 2) {
+			fputs("Aufruf: bg [ pgid ]", stderr);
+			return -1;
 		}
+		kill(atoi(worte[1]), SIGCONT);
+		return 0;
+	}
 
 	/* PROGRAM CALL */
 	return aufruf(k, forkexec);
