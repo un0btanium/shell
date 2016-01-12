@@ -104,7 +104,7 @@ int interpretiere_pipeline(Kommando k) {
 
 	for (i = 0; i < numbOfPip + 1; i++) {
 		waitpid(childpid[i], &status, WUNTRACED);
-			setStatus(childpid[i], status);
+		setStatus(childpid[i], status);
 	}
 
 	tcsetpgrp(STDIN_FILENO, shellpid);
@@ -194,6 +194,7 @@ int status() {
 	ProzessListe vorherigerListenEintrag;
 	Prozess aktuellerProzess;
 	Prozess vorherigerProzess;
+	int pid_t;
 
 	int i, status;
 	int processCount = anzahlProzesse(prozesse);
@@ -204,20 +205,14 @@ int status() {
 	}
 
 	/* Status Update */
-
-//	for (aktuellerListenEintrag = prozesse; aktuellerListenEintrag != NULL;
-//			aktuellerListenEintrag = aktuellerListenEintrag->naechster) {
-//
-//		int pid = aktuellerListenEintrag->prozess->pid;
-//		int pid_t = waitpid(pid, &status, WNOHANG | WUNTRACED | WCONTINUED);
-//		if (pid_t == 0) // running
-//			aktuellerListenEintrag->prozess->status = -1;
-//		else if (pid_t > 0)
-//			aktuellerListenEintrag->prozess->status = status;
-//	}
+	do {
+		pid_t = waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED);
+		if (pid_t > 0)
+			aktuellerListenEintrag->prozess->status = status;
+	} while (pid_t > 0);
 
 	/* Status Output */
-	printf("NUM	PID		PGID	STATUS			PROG\n---------------------------------------------------------------------\n");
+	printf("NUM	PID		PGID	STATUS			PROG\n--------------------------------------------------------------------------\n");
 	for (i = 1, aktuellerListenEintrag = prozesse;
 			aktuellerListenEintrag != NULL; i++, aktuellerListenEintrag =
 					aktuellerListenEintrag->naechster) {
@@ -229,7 +224,7 @@ int status() {
 		} else if (WIFEXITED(status)) { /* process terminated normally */
 			sprintf(status_string, "exit(%d)", WEXITSTATUS(status));
 		} else if (WIFSIGNALED(status)) { /* process was terminated by a signal */
-			sprintf(status_string, "signal(%d)", WTERMSIG(status));
+			sprintf(status_string, "signal(%d - %s)", WTERMSIG(status), strsignal(WTERMSIG(status)));
 		} else if (WIFSTOPPED(status)) { /* process was stopped by delivery of a signal */
 			sprintf(status_string, "stopped(%d)", WSTOPSIG(status));
 		} else if (WIFCONTINUED(status)) /* process was resumed by delivery of SIGCONT */
@@ -280,7 +275,7 @@ int aufruf(Kommando k, int forkexec) {
 	 oder Subprozess (forkexec==1)
 	 */
 	char* prog = k->u.einfach.worte[0];
-	int status = 0;
+	int status = -1;
 
 	if (forkexec) {
 		int pid = fork();
@@ -300,17 +295,12 @@ int aufruf(Kommando k, int forkexec) {
 			/* no break */
 		default:
 			setpgid(pid, pid);
-			prozesse = prozessAnfuegen(pid, getpgid(pid), status, prog,
-					prozesse);
+			waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED);
+			prozesse = prozessAnfuegen(pid, getpgid(pid), status, prog, prozesse);
 			if (k->endeabwarten) { /* Prozess im Vordergrund */
 				tcsetpgrp(STDIN_FILENO, getpgid(pid));
-
 				waitpid(pid, &status, WUNTRACED);
 				tcsetpgrp(STDIN_FILENO, shellpid);
-				setStatus(pid, status);
-
-			} else {
-				waitpid(pid, &status, WUNTRACED | WNOHANG | WCONTINUED);
 				setStatus(pid, status);
 			}
 			return status;
@@ -407,8 +397,8 @@ int interpretiere_einfach(Kommando k, int forkexec) {
 		for (aktuellerListenEintrag = prozesse; aktuellerListenEintrag != NULL; aktuellerListenEintrag = aktuellerListenEintrag->naechster) {
 			if (aktuellerListenEintrag->prozess->pgid == atoi(worte[1])) {
 				kill(aktuellerListenEintrag->prozess->pid, SIGCONT);
-				waitpid(aktuellerListenEintrag->prozess->pid, &statuss, WNOHANG | WUNTRACED | WCONTINUED);
-				setStatus(aktuellerListenEintrag->prozess->pid, statuss);
+				waitpid(aktuellerListenEintrag->prozess->pid, &statuss, WNOHANG | WUNTRACED | WCONTINUED); // TODO
+				setStatus(aktuellerListenEintrag->prozess->pid, statuss); // TODO
 			}
 		}
 
