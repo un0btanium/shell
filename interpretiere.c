@@ -290,6 +290,14 @@ int aufruf(Kommando k, int forkexec) {
 			}
 			if (umlenkungen(k))
 				exit(1);
+
+			struct sigaction sa, sa_ign;
+			sa.sa_handler = SIG_DFL;
+			sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
+			sigemptyset(&sa.sa_mask);
+			if (sigaction(SIGTTOU, &sa, NULL) < 0)
+						exit(1);
+
 			do_execvp(k->u.einfach.wortanzahl, k->u.einfach.worte);
 			abbruch("interner Fehler 001"); /* sollte nie ausgeführt werden */
 			/* no break */
